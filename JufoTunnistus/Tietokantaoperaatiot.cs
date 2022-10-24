@@ -29,14 +29,15 @@ namespace Jufo_Tunnistus
                                   "AND  TABLE_NAME = 'Jufot_TMP')) " +
                               "BEGIN " +
                                   "DELETE FROM dbo.Jufot_TMP;" +
-                                  "INSERT INTO dbo.Jufot_TMP " + 
-                                      "SELECT JulkaisunTunnus, JufoTunnus, JufoLuokkaKoodi " + 
-                                      "FROM dbo.SA_Julkaisut " +
+                                  "INSERT INTO dbo.Jufot_TMP " +
+                                      "SELECT JulkaisunTunnus, JufoTunnus, JufoLuokkaKoodi " +
+                                      "FROM dbo.SA_Julkaisut "  +
                                       "WHERE JulkaisunTunnus NOT IN (" +
                                           "SELECT JulkaisunTunnus " +
                                           "FROM dbo.EiJufoTarkistusta);" +
                               "END";
 
+            
             cmd.CommandType = CommandType.Text;
             cmd.Connection = conn;
             cmd.ExecuteNonQuery();
@@ -186,7 +187,7 @@ namespace Jufo_Tunnistus
 
             SqlCommand cmd = new SqlCommand();
 
-            cmd.CommandText = "SELECT COUNT(*) FROM Julkaisukanavatietokanta WHERE (ISSN1 = @ekaISSN1 OR ISSN1 = @ekaISSN2 OR ISSN2 = @ekaISSN1 OR ISSN2 = @ekaISSN2) AND Active_binary <> 0";
+            cmd.CommandText = "SELECT COUNT(*) FROM Julkaisukanavatietokanta WHERE (ISSN1 = @ekaISSN1 OR ISSN1 = @ekaISSN2 OR ISSN2 = @ekaISSN1  OR ISSN2 = @ekaISSN2) AND Active_binary <> 0";
             cmd.CommandType = CommandType.Text;
             cmd.Connection = conn;
 

@@ -308,7 +308,7 @@ namespace Jufo_Tunnistus
                         }
 
                     }
-
+                    // poistettu Channel_id SA_Julkaisut_update_JufoTunnus_ja_JufoLuokkaKoodi-funktion kutsusta. Ei saa päivittää JufoTunnukseen
                     else if (((jufo_ID == null) || (jufo_ID.Equals(""))) && (channel_ID != null) && !(channel_ID.Equals("")))
                     {
 
@@ -318,7 +318,7 @@ namespace Jufo_Tunnistus
                             // Sitten tutkitaan, onko kyseessa aktiivinen vai lopettanut kanava.
                             if (active.Equals("Active"))    // kanava on aktiivinen
                             {
-                                tietokantaoperaatiot.SA_Julkaisut_update_JufoTunnus_ja_JufoLuokkaKoodi(server, ekaJulkaisunTunnus, channel_ID, null);
+                                tietokantaoperaatiot.SA_Julkaisut_update_JufoTunnus_ja_JufoLuokkaKoodi(server, ekaJulkaisunTunnus, null, null);
                             }
 
                             // Jos kanava ei ole aktiivinen, niin Active = "Inactive"
@@ -327,7 +327,7 @@ namespace Jufo_Tunnistus
 
                                 if (ekaJulkaisuvuosi <= year_end)
                                 {
-                                    tietokantaoperaatiot.SA_Julkaisut_update_JufoTunnus_ja_JufoLuokkaKoodi(server, ekaJulkaisunTunnus, channel_ID, null);
+                                    tietokantaoperaatiot.SA_Julkaisut_update_JufoTunnus_ja_JufoLuokkaKoodi(server, ekaJulkaisunTunnus, null, null);
                                 }
 
                             }
