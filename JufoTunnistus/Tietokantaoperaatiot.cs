@@ -1,909 +1,456 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Data;
 
 namespace Jufo_Tunnistus
 {
+    class SqlCon
+    {
+        public SqlConnection conn;
+        public SqlCommand cmd;
+
+        public SqlCon(string connString)
+        {
+            conn = new SqlConnection(connString);
+            cmd = new SqlCommand();
+            cmd.CommandType = CommandType.Text;
+            cmd.CommandTimeout = 180;
+            cmd.Connection = conn;
+        }
+        public void Avaa()
+        {
+            conn.Open();
+        }
+
+        public void Sulje()
+        {
+            cmd.Parameters.Clear();
+            conn.Close();
+        }
+    }
+
+
     class Tietokantaoperaatiot
     {
 
-        // Let's create and populate TMP-table for JufoTunnus and JufoLuokkaKoodi
-        // in order to find differences between origina jufo-values and the values
-        // identified by JufoTunnistus program
-        public void create_and_populate_Jufot_TMP(string connection)
+        private SqlCon SqlConn;
+
+        public Tietokantaoperaatiot() { }
+
+
+        public Tietokantaoperaatiot(string connString)
         {
-
-            SqlConnection conn = new SqlConnection(connection);
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "IF (EXISTS (SELECT * " +
-                                  "FROM INFORMATION_SCHEMA.TABLES " +
-                                  "WHERE TABLE_CATALOG = 'julkaisut_ods' " +
-                                  "AND TABLE_SCHEMA = 'dbo' " +
-                                  "AND  TABLE_NAME = 'Jufot_TMP')) " +
-                              "BEGIN " +
-                                  "DELETE FROM dbo.Jufot_TMP;" +
-                                  "INSERT INTO dbo.Jufot_TMP " +
-                                      "SELECT JulkaisunTunnus, JufoTunnus, JufoLuokkaKoodi " +
-                                      "FROM dbo.SA_Julkaisut "  +
-                                      "WHERE JulkaisunTunnus NOT IN (" +
-                                          "SELECT JulkaisunTunnus " +
-                                          "FROM dbo.EiJufoTarkistusta);" +
-                              "END";
-
-            
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-            cmd.ExecuteNonQuery();
-            
-            conn.Close();
-
+            SqlConn = new SqlCon(connString);
         }
 
 
-
-        // Haetaan SA_Julkaisut-kannasta kaikki rivit
-        // return SqlDataReader
-        public SqlDataReader SA_julkaisut_select_sarakkeet(SqlConnection conn)
+        public void tyhjenna_taulu(string table)
         {
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT rivi, JulkaisunTunnus, JulkaisuVuosi, JufoTunnus, JufoLuokkaKoodi, KustantajanNimi, JulkaisutyyppiKoodi, KonferenssinNimi " +
-                               "FROM dbo.SA_Julkaisut " +
-                               "WHERE JulkaisutyyppiKoodi IS NOT NULL " + 
-                               "AND JulkaisunTunnus NOT IN (" +
-                                    "SELECT JulkaisunTunnus " +
-                                    "FROM dbo.EiJufoTarkistusta)";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
+            SqlConn.Avaa();
+            SqlConn.cmd.CommandText = "TRUNCATE TABLE " + table;
+            SqlConn.cmd.ExecuteNonQuery();
+            SqlConn.Sulje();
         }
 
 
-        // [julkaisut_ods].[dbo].[SA_ISSN]
-        // [julkaisut_ods].[dbo].[SA_ISBN]
-        // [julkaisut_ods].[dbo].[ODS_ISSN]
-        // [julkaisut_ods].[dbo].[ODS_ISBN]
-        //
-        // Haetaan julkaisun ISSN- tai ISBN -tunnukset julkaisulle JulkaisunTunnus-arvon perusteella
-        // Ensimmaine parametrina on tietokantayhteys ja toinen parametri kertoo mita tunnusta halutaan
-        // (ISSN vai ISBN). Kolmas parametri kertoo halutaanko tunnukset SA- vai ODS -tauluista.
-        public SqlDataReader hae_tunnus_julkaisulle(SqlConnection conn, string julkTunnus, string tunnus, string taulu)
-        {
+        public DataTable lue_tietokantataulu_datatauluun()
+        {         
+            string kysely = @"
+                SELECT 
+                    JulkaisunTunnus
+                    ,JulkaisuVuosi
+                    ,OrganisaatioTunnus
+                    ,JulkaisunOrgTunnus
+                    ,JulkaisutyyppiKoodi  
+                    ,JufoTunnus
+                    ,JufoLuokkaKoodi                 
+                    ,KonferenssinNimi                                                         
+                    ,KustantajanNimi   
+                    --,JulkaisunNimi 
+                    --,EmojulkaisunNimi
+                    --,LehdenNimi   
+                    --,DOI          
+                FROM julkaisut_ods.dbo.SA_Julkaisut 
+                WHERE JulkaisunTilaKoodi != -1
+                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','B1','B2','B3','C1','C2','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
+                AND JulkaisunTunnus NOT IN (
+                    SELECT JulkaisunTunnus 
+                    FROM julkaisut_ods.dbo.EiJufoTarkistusta
+                )";
 
-            conn.Open();
+            SqlConn.Avaa();
+            SqlConn.cmd.CommandText = kysely;
 
-            SqlCommand cmd = new SqlCommand();
+            DataTable dt = new DataTable();
+            SqlDataAdapter sda = new SqlDataAdapter(SqlConn.cmd);
+            sda.Fill(dt);
 
-            if (tunnus.Equals("ISSN") && taulu.Equals("SA"))
-            {
-                cmd.CommandText = "SELECT * FROM dbo.SA_ISSN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            }
-            else if (tunnus.Equals("ISBN") && taulu.Equals("SA"))
-            {
-                cmd.CommandText = "SELECT * FROM dbo.SA_ISBN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            }
-            else if (tunnus.Equals("ISSN") && taulu.Equals("ODS"))
-            {
-                cmd.CommandText = "SELECT * FROM dbo.ODS_ISSN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            }
-            else if (tunnus.Equals("ISBN") && taulu.Equals("ODS"))
-            {
-                cmd.CommandText = "SELECT * FROM dbo.ODS_ISBN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            }
+            SqlConn.Sulje();
 
-            cmd.CommandType = CommandType.Text;
-            cmd.Parameters.AddWithValue("@JulkaisunTunnus", julkTunnus);
-            cmd.Connection = conn;
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
-
+            return dt;
         }
 
 
-        // [julkaisut_ods].[dbo].[SA_ISSN]
-        // [julkaisut_ods].[dbo].[SA_ISBN]
-        // [julkaisut_ods].[dbo].[ODS_ISSN]
-        // [julkaisut_ods].[dbo].[ODS_ISBN]
-        //
-        // laske parametrina annetun julkaisun ISSN- tai ISBN -tunnusten maara. Toisena parametrina annetaan tieto
-        // halutaanko ISSN- vai ISBN-tunnusten maarat ja kolmas parametri kertoo, mista taulusta haetaan tieto (SA/ODS)
-        public int count_tunnusten_maara(string server, string julkTunnus, string tunnus, string taulu)
+        public void kirjoita_datataulu_tietokantaan(DataTable dt, String taulu)
         {
+            SqlConn.Avaa();
 
-            string connectionString_ods_julkaisut = "Server=" + server + ";Database=julkaisut_ods;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_ods_julkaisut);
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            if (tunnus.Equals("ISSN") && taulu.Equals("SA"))
+            using (SqlBulkCopy bulkCopy = new SqlBulkCopy(SqlConn.conn))
             {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.SA_ISSN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            }
-            else if (tunnus.Equals("ISBN") && taulu.Equals("SA"))
-            {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.SA_ISBN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            }
-            else if (tunnus.Equals("ISSN") && taulu.Equals("ODS"))
-            {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.ODS_ISSN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            }
-            else if (tunnus.Equals("ISBN") && taulu.Equals("ODS"))
-            {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.ODS_ISBN WHERE JulkaisunTunnus = @JulkaisunTunnus";
+                // Sarakkeiden mappaus datataulun ja tietokantataulun välillä
+                foreach (DataColumn column in dt.Columns)
+                {
+                    bulkCopy.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+                }
+
+                bulkCopy.BatchSize = 10000;
+                bulkCopy.DestinationTableName = taulu;
+
+                try
+                {
+                    bulkCopy.WriteToServer(dt);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    throw;
+                }
             }
 
-            cmd.CommandType = CommandType.Text;
-            cmd.Parameters.AddWithValue("@JulkaisunTunnus", julkTunnus);
-            cmd.Connection = conn;
-
-            int maara = (int)cmd.ExecuteScalar();
-
-            conn.Close();
-
-            return maara;
+            SqlConn.Sulje();
         }
 
 
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan Julkaisukanavatietokanta-taulusta niiden rivien maara, joille ISSN1 = issn tai ISS2 = issn
-        public int Julkaisukanavatietokanta_count_issn_match_rows(string server, string issn1, string issn2)
+        public void uudelleenrakenna_indeksit(string taulu)
         {
-
-
-            // jos issn1 = null tai issn2 = null, niin palautetaan -1
-            if ((issn1 == null) || (issn2 == null))
-            {
-                return -1;
-            }
-
-
-            string connectionString_mds_julkaisut = "Server=" + server + ";Database=julkaisut_mds;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_mds_julkaisut);
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT COUNT(*) FROM Julkaisukanavatietokanta WHERE (ISSN1 = @ekaISSN1 OR ISSN1 = @ekaISSN2 OR ISSN2 = @ekaISSN1  OR ISSN2 = @ekaISSN2) AND Active_binary <> 0";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            // issn1
-            if (String.IsNullOrEmpty(issn1))
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN1", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN1", issn1);
-            }
-
-            // issn2
-            if (String.IsNullOrEmpty(issn2))
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN2", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN2", issn2);
-            }
-
-
-            int maara = (int)cmd.ExecuteScalar();
-
-            conn.Close();
-
-            return maara;
-
+            SqlConn.Avaa();
+            SqlConn.cmd.CommandText = "ALTER INDEX ALL ON " + taulu + " REBUILD";
+            SqlConn.cmd.ExecuteNonQuery();
+            SqlConn.Sulje();
         }
 
 
-        //----------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan Julkaisukanavatietokanta-taulusta niiden rivien maara, joille ISBN = isbn_root
-        public int Julkaisukanavatietokanta_count_isbn_root_match_rows(string server, string isbn_root)
+        public void paivita_ISSN_ja_ISBN_tunnukset(string taulu)
         {
+            SqlConn.Avaa();
 
-            // jos isbn = null, niin palautetaan -1
-            if (isbn_root == null)
-            {
-                return -1;
-            }
+            // ISSN
+            SqlConn.cmd.CommandText = @"
+                UPDATE j
+                SET
+                     j.ISSN1 = d2.[1]
+                    ,j.ISSN2 = d2.[2]
+                FROM " + taulu + @" j
+                LEFT JOIN (
+                    SELECT
+                        JulkaisunTunnus,[1],[2]
+                    FROM (
+                        SELECT
+                            JulkaisunTunnus
+                            , ISSN = nullif(ltrim(ISSN), '')
+                            , rn = row_number() over(partition by JulkaisunTunnus order by Lataus_ID)
+                        FROM [julkaisut_ods].[dbo].[SA_ISSN]
+	                ) Q
+                    PIVOT(
+                        min(ISSN) FOR rn in ([1],[2])
+	                ) pvt
+                ) d2 on d2.JulkaisunTunnus = j.JulkaisunTunnus";
+            SqlConn.cmd.ExecuteNonQuery();
 
-            string connectionString_mds_julkaisut = "Server=" + server + ";Database=julkaisut_mds;Trusted_Connection=true";
+            // ISBN
+            SqlConn.cmd.CommandText = @"
+                UPDATE j
+                SET
+                     j.ISBN1 = d2.[1]
+                    ,j.ISBN2 = d2.[2]
+                FROM " + taulu + @" j
+                LEFT JOIN (
+                    SELECT
+                        JulkaisunTunnus,[1],[2]
+                    FROM (
+                        SELECT
+                            JulkaisunTunnus
+                            , ISBN = nullif(ltrim(ISBN), '')
+                            , rn = row_number() over(partition by JulkaisunTunnus order by Lataus_ID)
+                        FROM [julkaisut_ods].[dbo].[SA_ISBN]
+	                ) Q
+                    PIVOT(
+                        min(ISBN) FOR rn in ([1],[2])
+	                ) pvt
+                ) d2 on d2.JulkaisunTunnus = j.JulkaisunTunnus";
+            SqlConn.cmd.ExecuteNonQuery();
 
-            SqlConnection conn = new SqlConnection(connectionString_mds_julkaisut);
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT COUNT(*) FROM Julkaisukanavatietokanta WHERE ISBN LIKE @ISBN";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(isbn_root))
-            {
-                cmd.Parameters.AddWithValue("@ISBN", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ISBN", "%" + isbn_root + ";%");
-            }
-
-            int maara = (int)cmd.ExecuteScalar();
-
-            conn.Close();
-
-            return maara;
-
+            SqlConn.Sulje();
         }
 
 
-
-        public SqlDataReader Julkaisukanavatietokanta_select_name_or_other_title_kustantajan_perusteella(SqlConnection conn, string kustantaja, string valinta)
+        public void tunnista_konferenssi()
         {
+            SqlConn.Avaa();
 
-            conn.Open();
+            SqlConn.cmd.CommandText = @"
+                WITH t AS (
+                    SELECT
+                         JufoTunnus
+                        ,jktk.Jufo_ID
+                        ,JufoLuokkaKoodi
+	                    ,JufoLuokkaKoodi_e =        
+		                    case
+			                    when jktk.Jufo_ID is not null and charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';')
+		                    end
+                        ,JufoPaattely
+                        ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
+                    FROM julkaisut_ods.dbo.SA_JulkaisutTMP t
+                    INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.Name = t.KonferenssinNimi or jktk.Other_Title = t.KonferenssinNimi
+                    WHERE t.JufoTunnus is null
+                    and jktk.Active_binary = 1 
+                    and jktk.[Type] = 'Konferenssi'
+                    and jktk.Jufo_ID is not null
+                    and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
+                    and t.JulkaisutyyppiKoodi in ('A4','C2')
+                )
 
-            SqlCommand cmd = new SqlCommand();
+                UPDATE t
+                SET 
+	                 JufoTunnus = Jufo_ID
+	                ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
+                    ,JufoPaattely = 'konf'
+                WHERE t.rn = 1";
 
-            if (valinta.Equals("name"))
-            {
-                cmd.CommandText = "SELECT * FROM Julkaisukanavatietokanta WHERE Name = @Kustantaja";
-            }
-            else if (valinta.Equals("other_title"))
-            {
-                cmd.CommandText = "SELECT * FROM Julkaisukanavatietokanta WHERE Other_Title = @Kustantaja";
-            }
+            SqlConn.cmd.ExecuteNonQuery();
 
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(kustantaja))
-            {
-                cmd.Parameters.AddWithValue("@Kustantaja", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@Kustantaja", kustantaja);
-            }
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
-
+            SqlConn.Sulje();
         }
 
 
-
-
-
-        //----------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan Julkaisukanavatietokanta-taulusta niiden rivien maara, joille name = konf
-        public int Julkaisukanavatietokanta_count_konferenssi_match_rows(string server, string konf)
+        public void tunnista_ISSN()
         {
+            SqlConn.Avaa();
 
-            // jos konf = null, niin palautetaan -1
-            if (konf == null)
+            // ISSN-kenttien eri kombinaatiot silmukalla
+            for (int i = 1; i <= 2; i++)
             {
-                return -1;
+                for (int j = 1; j <= 2; j++)
+                {
+                    SqlConn.cmd.CommandText =
+                        @"
+                        WITH t as (
+                        SELECT 
+                            JufoTunnus
+                            ,jktk.Jufo_ID
+	                        ,JufoLuokkaKoodi
+                            ,JufoLuokkaKoodi_e = 
+                                case
+                                    when t.JulkaisutyyppiKoodi in ('A1', 'A2', 'A3', 'A4', 'C1', 'C2') then
+		                                case
+			                                when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
+		                                end
+                                end  
+                            ,JufoPaattely
+                            ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
+                        FROM julkaisut_ods.dbo.SA_JulkaisutTMP t 
+                        INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = t.ISSN" + j + @" 
+                        OUTER APPLY (select taso = nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':')) oa 
+                        WHERE (t.JufoTunnus is null or t.JufoPaattely = 'issn')                       
+                        and jktk.Active_binary = '1'
+                        and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
+                        and jktk.Jufo_ID is not null
+                        )
+                
+                        UPDATE t 
+                        SET 
+                             JufoTunnus = Jufo_ID
+	                        ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
+                            ,JufoPaattely = 'issn'
+                        WHERE t.rn = 1 and coalesce(t.JufoLuokkaKoodi_e,-2) >= coalesce(t.JufoLuokkaKoodi,-2)";
+
+                    SqlConn.cmd.ExecuteNonQuery();
+                }
+
             }
 
-            string connectionString_mds_julkaisut = "Server=" + server + ";Database=julkaisut_mds;Trusted_Connection=true";
+            SqlConn.Sulje();
+        }
 
-            SqlConnection conn = new SqlConnection(connectionString_mds_julkaisut);
 
-            conn.Open();
+        public void tunnista_ISBN()
+        {
+            SqlConn.Avaa();
 
-            SqlCommand cmd = new SqlCommand();
+            // Temp-taulun luonti
+            SqlConn.cmd.CommandText = @"
+                SELECT
+                    JulkaisunTunnus, ISSN1 = [1], ISSN2 = [2]
+                INTO ##temp_issn
+                FROM (
+                    SELECT
+                        JulkaisunTunnus
+                        , ISSN = nullif(ltrim(ISSN), '')
+                        , rn = row_number() over(partition by JulkaisunTunnus order by Lataus_ID)
+                    FROM julkaisut_ods.dbo.ODS_ISSN
+                ) Q
+                PIVOT(
+                    min(ISSN) FOR rn in ([1],[2])
+                ) pvt
 
-            cmd.CommandText = "SELECT COUNT(*) FROM Julkaisukanavatietokanta WHERE Active_binary = 1 AND Type = 'Konferenssi' AND (Name = @Name OR Other_Title = @Other_Title)";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
+                CREATE NONCLUSTERED INDEX [NC_temp_issn1] ON [tempdb].[dbo].[##temp_issn] ([JulkaisunTunnus]) INCLUDE ([ISSN1])
+                CREATE NONCLUSTERED INDEX [NC_temp_issn2] ON [tempdb].[dbo].[##temp_issn] ([JulkaisunTunnus]) INCLUDE ([ISSN2])
 
-            if (String.IsNullOrEmpty(konf))
+                ";
+            SqlConn.cmd.ExecuteNonQuery();
+
+            // ISSN-kenttien eri kombinaatiot silmukalla
+            for (int i = 1; i <= 2; i++)
             {
-                cmd.Parameters.AddWithValue("@Name", DBNull.Value);
-                cmd.Parameters.AddWithValue("@Other_Title", DBNull.Value);
+                for (int j = 1; j <= 2; j++)
+                {
+                    SqlConn.cmd.CommandText = @"
+                        WITH t AS (
+                            SELECT
+                                JufoTunnus
+                                ,jktk.Jufo_ID
+	                            ,JufoLuokkaKoodi
+	                            ,JufoLuokkaKoodi_e =     
+		                            case
+			                            when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
+		                            end 
+                                ,JufoPaattely
+                                ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
+                            FROM julkaisut_ods.dbo.SA_JulkaisutTMP t 
+                            INNER JOIN julkaisut_ods.dbo.ODS_ISBN i1 on (i1.ISBN = t.ISBN1 or i1.ISBN = t.ISBN2) and i1.JulkaisunTunnus != t.JulkaisunTunnus
+                            INNER JOIN ##temp_issn tmp on tmp.JulkaisunTunnus = i1.JulkaisunTunnus 
+                            INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = tmp.ISSN" + j + @"
+                            OUTER APPLY (select taso = nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':')) oa 
+                            WHERE (t.JufoTunnus is null or t.JufoPaattely = 'isbn')    
+                            --and (t.JulkaisutyyppiKoodi in ('A3','C1') or (t.JulkaisutyyppiKoodi in ('A4','C2') and (t.ISSN1 is not null or t.ISSN2 is not null))) 
+                            -- Jos halutaan tehdä A4 ja C2 tyypeille vastaava tarkistus kuin A3 ja C1 tyypeille niin yllä oleva korvataan alla olevalla
+                            and t.JulkaisutyyppiKoodi in ('A3','C1','A4','C2')
+                            and jktk.Active_binary = 1 
+                            and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
+                            and jktk.Jufo_ID is not null
+                        )
+                                   
+                        UPDATE t 
+                        SET 
+                             JufoTunnus = Jufo_ID
+	                        ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
+                            ,JufoPaattely = 'isbn'
+                        WHERE t.rn = 1 and coalesce(t.JufoLuokkaKoodi_e,-2) > coalesce(t.JufoLuokkaKoodi,-2)";
+
+                    SqlConn.cmd.ExecuteNonQuery();
+                }
             }
-            else
-            {
-                cmd.Parameters.AddWithValue("@Name", konf);
-                cmd.Parameters.AddWithValue("@Other_Title", konf);
-            }
 
-            int maara = (int)cmd.ExecuteScalar();
+            // Temp-taulun poisto
+            SqlConn.cmd.CommandText = "DROP TABLE ##temp_issn";
+            SqlConn.cmd.ExecuteNonQuery();
 
-            conn.Close();
-
-            return maara;
-
+            SqlConn.Sulje();
         }
 
         
-        public SqlDataReader Julkaisukanavatietokanta_select_name(SqlConnection conn, string server)
+        public void tunnista_ISBN_juuri()
         {
+            SqlConn.Avaa();
 
-            conn.Open();
+            SqlConn.cmd.CommandText = @"
+                CREATE TABLE ##temp_jktk (
+	                jktk_isbn varchar(100),
+	                Title varchar(500),
+	                Name varchar(500),
+	                Year_End int,
+	                Active varchar(20),
+	                Jufo_ID bigint,
+	                Jufo_History varchar(500)
+                )
 
-            SqlCommand cmd = new SqlCommand();
+                INSERT INTO ##temp_jktk (jktk_isbn,Title,Name,Year_End,Active,Jufo_ID,Jufo_History)
 
-            cmd.CommandText = "SELECT Jufo_ID, Name FROM dbo.Julkaisukanavatietokanta WHERE Jufo_ID IS NOT NULL";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
+                SELECT 
+	                jktk_isbn = ltrim(rtrim(oa1.Item))
+	                ,Title = replace(ltrim(rtrim(oa2.item)),' & ',' and ')
+	                ,[Name] = replace(jktk.[Name],' & ',' and ')
+	                ,Year_End
+	                ,Active
+	                ,Jufo_ID
+	                ,Jufo_History
+                FROM julkaisut_mds.dbo.Julkaisukanavatietokanta jktk
+                -- ISBN splittaus kahdessa osassa koska osassa kentistä erottimena on puolipiste ja osassa pilkku
+                OUTER APPLY (select item from julkaisut_ods.dbo.SplitStrings(jktk.ISBN,';')) oa1_1
+                OUTER APPLY (select item from julkaisut_ods.dbo.SplitStrings(oa1_1.Item,',')) oa1
+                OUTER APPLY (select item from julkaisut_ods.dbo.SplitStrings(jktk.Other_Title,';')) oa2
+                WHERE [Type] = 'Kirjakustantaja' 
+                and jktk.Jufo_ID is not null
+                and jktk.Active_binary = 1
+                and oa1_1.Item is not null
 
-            SqlDataReader reader = cmd.ExecuteReader();
+                ;WITH t AS (
+                    SELECT
+	                    JufoTunnus
+                        ,jktk.Jufo_ID
+	                    ,JufoLuokkaKoodi
+	                    ,JufoLuokkaKoodi_e = 
+		                    case
+			                    when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';')
+		                    end
+                        ,JufoPaattely
+                        ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
+                    FROM julkaisut_ods.dbo.SA_JulkaisutTMP t
+                    OUTER APPLY (
+	                    select	
+		                    ISBN_juuri1 = LEFT([ISBN1],nullif(charindex('-',[ISBN1],charindex('-',[ISBN1], (charindex('-',[ISBN1])+1))+1)-1,-1))
+                            -- Jos haku myös ISBN2 perusteella niin tämä mukaan
+		                    ,ISBN_juuri2 = LEFT([ISBN2],nullif(charindex('-',[ISBN2],charindex('-',[ISBN2], (charindex('-',[ISBN2])+1))+1)-1,-1))
+                    ) oa
+                    INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2
+                    WHERE t.JufoTunnus is null
+                    and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2')
+                    and (lower(t.KustantajanNimi) = lower(jktk.Name) or lower(t.KustantajanNimi) = lower(jktk.Title))     
+                    and (jktk.Active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End)
+                )
 
-            return reader;
+                UPDATE t
+                SET
+	                JufoTunnus = Jufo_ID
+	                ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
+                    ,JufoPaattely = 'isbn_juuri'
+                WHERE t.rn = 1
 
+                DROP TABLE ##temp_jktk";
+
+            SqlConn.cmd.ExecuteNonQuery();
+
+            SqlConn.Sulje();
         }
 
 
-        //----------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan ODS_ISBN-taulusta niiden rivien maara, joille ISBN = isbn1 OR ISBN = isbn2
-        public int ODS_ISBN_count_isbn_match_rows(string server, string isbn1, string isbn2)
+        public void kirjoita_jufot_tmp_tauluun()
         {
-
-            // jos isbn = null, niin palautetaan -1
-            if ((isbn1 == null) || (isbn2 == null))
-            {
-                return -1;
-            }
-
-            string connectionString_ods_julkaisut = "Server=" + server + ";Database=julkaisut_ods;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_ods_julkaisut);
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            if (isbn1.Equals("") && isbn2.Equals(""))
-            {
-                conn.Close();
-                return 0;   // parametrit ovat tyhjat, joten palautetaan 0
-            }
-            else if (isbn1.Equals("") && !(isbn2.Equals("")))
-            {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.ODS_ISBN WHERE ISBN = @ISBN";
-                cmd.Parameters.AddWithValue("@ISBN", isbn2);
-            }
-            else if (!(isbn1.Equals("")) && isbn2.Equals(""))
-            {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.ODS_ISBN WHERE ISBN = @ISBN";
-                cmd.Parameters.AddWithValue("@ISBN", isbn1);
-            }
-            else if (!(isbn1.Equals("")) && !(isbn2.Equals("")))
-            {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.ODS_ISBN WHERE ISBN = @ISBN1 OR ISBN = @ISBN2";
-                cmd.Parameters.AddWithValue("@ISBN1", isbn1);
-                cmd.Parameters.AddWithValue("@ISBN2", isbn2);
-            }
-            else
-            {
-                conn.Close();
-                return 0;
-            }
-            
-
-            //cmd.CommandText = "SELECT COUNT(*) FROM dbo.ODS_ISBN WHERE ISBN = @ekaISBN1 OR ISBN = @ekaISBN2";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            //if (String.IsNullOrEmpty(isbn1))
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN1", DBNull.Value);
-            //}
-            //else
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN1", isbn1);
-            //}
-
-            //if (String.IsNullOrEmpty(isbn2))
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN2", DBNull.Value);
-            //}
-            //else
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN2", isbn2);
-            //}
-            //
-            int maara = (int)cmd.ExecuteScalar();
-            
-            conn.Close();
-            
-            return maara;
-
+            SqlConn.Avaa();
+            SqlConn.cmd.CommandText = @"
+                TRUNCATE TABLE julkaisut_ods.dbo.Jufot_TMP
+                INSERT INTO julkaisut_ods.dbo.Jufot_TMP (JulkaisunTunnus, JufoTunnus, JufoLuokkaKoodi)
+                SELECT JulkaisunTunnus, JufoTunnus, JufoLuokkaKoodi 
+                FROM julkaisut_ods.dbo.SA_Julkaisut";
+            SqlConn.cmd.ExecuteNonQuery();
+            SqlConn.Sulje();
         }
 
 
-        // Haetaan ODS_ISBN-taulusta julkaisunTunnus sille julkaisulle, joille ISBN = isbn1 OR ISBN = isbn2
-        public SqlDataReader ODS_ISBN_hae_julkaisunTunnus(SqlConnection conn, string server, string isbn1, string isbn2)
+        public void paivita_jufot_sa_tauluun()
         {
-
-            //// jos isbn1 = null tai isbn2 = null, niin palautetaan -1
-            //if ((isbn1 == null) || (isbn2 == null))
-            //{
-            //    return "-1";
-            //}
-
-            string connectionString_ods_julkaisut = "Server=" + server + ";Database=julkaisut_ods;Trusted_Connection=true";
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            if (isbn1.Equals("") && isbn2.Equals(""))
-            {
-                cmd.CommandText = "SELECT DISTINCT JulkaisunTunnus FROM dbo.ODS_ISBN WHERE ISBN = 'ABCDEFGHIJ'";
-            }
-            else if (isbn1.Equals("") && !(isbn2.Equals("")))
-            {
-                cmd.CommandText = "SELECT DISTINCT JulkaisunTunnus FROM dbo.ODS_ISBN WHERE ISBN = @ISBN";
-                cmd.Parameters.AddWithValue("@ISBN", isbn2);
-            }
-            else if (!(isbn1.Equals("")) && isbn2.Equals(""))
-            {
-                cmd.CommandText = "SELECT DISTINCT JulkaisunTunnus FROM dbo.ODS_ISBN WHERE ISBN = @ISBN";
-                cmd.Parameters.AddWithValue("@ISBN", isbn1);
-            }
-            else if (!(isbn1.Equals("")) && !(isbn2.Equals("")))
-            {
-                cmd.CommandText = "SELECT DISTINCT JulkaisunTunnus FROM dbo.ODS_ISBN WHERE ISBN = @ISBN1 OR ISBN = @ISBN2";
-                cmd.Parameters.AddWithValue("@ISBN1", isbn1);
-                cmd.Parameters.AddWithValue("@ISBN2", isbn2);
-            }
-            else
-            {
-                cmd.CommandText = "SELECT DISTINCT JulkaisunTunnus FROM dbo.ODS_ISBN WHERE ISBN = 'ABCDEFGHIJ'";
-            }
-
-            //cmd.CommandText = "SELECT DISTINCT JulkaisunTunnus FROM dbo.ODS_ISBN WHERE ISBN = @ekaISBN1 OR ISBN = @ekaISBN2";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            //if (String.IsNullOrEmpty(isbn1))
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN1", DBNull.Value);
-            //}
-            //else
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN1", isbn1);
-            //}
-
-            //if (String.IsNullOrEmpty(isbn2))
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN2", DBNull.Value);
-            //}
-            //else
-            //{
-            //    cmd.Parameters.AddWithValue("@ekaISBN2", isbn2);
-            //}
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
-
+            SqlConn.Avaa();
+            SqlConn.cmd.CommandText = @"
+                UPDATE t
+                SET 
+                    t.JufoTunnus = t2.JufoTunnus
+                    ,t.JufoLuokkaKoodi = t2.JufoLuokkaKoodi
+                FROM julkaisut_ods.dbo.SA_Julkaisut t
+                INNER JOIN julkaisut_ods.dbo.SA_JulkaisutTMP t2 on t2.JulkaisunTunnus = t.JulkaisunTunnus";
+            SqlConn.cmd.ExecuteNonQuery();
+            SqlConn.Sulje();
         }
 
-
-        // Haetaan ODS_ISSN-taulusta niiden rivien maara, jotka matchaavat parametrina annettuun julkaisun tunnukseen.
-        // Jos loytyy vahintaa yksi rivi, niin palautetaan true, muuten false
-        public bool ODS_julkaisulle_loytyy_issn_tunnus(string server, string julkTunnus)
-        {
-
-            string connectionString_ods_julkaisut = "Server=" + server + ";Database=julkaisut_ods;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_ods_julkaisut);
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT COUNT(*) FROM dbo.ODS_ISSN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            cmd.CommandTimeout = 300;
-
-            // JulkaisunTunnus
-            if (String.IsNullOrEmpty(julkTunnus))
-            {
-                cmd.Parameters.AddWithValue("@JulkaisunTunnus", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@JulkaisunTunnus", julkTunnus);
-            }
-
-            int maara = (int)cmd.ExecuteScalar();
-
-            conn.Close();
-
-            if (maara > 0)
-            {
-                return true;
-            }
-
-            return false;
-
-        }
-
-        //----------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Paivita SA_Julkaisut-taulun JufoTunnus- ja JufoLuokkaKoodi -kentat issn:aa vastaavalle riville
-        // parametrina annetuilla arvoilla
-        public void SA_Julkaisut_update_JufoTunnus_ja_JufoLuokkaKoodi(string server, string julkTunnus, string jufo_ID, string jufo_luokka)
-        {
-
-            // Update jufo_ID
-
-            string connectionString_ods_julkaisut = "Server=" + server + ";Database=julkaisut_ods;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_ods_julkaisut);
-            conn.Open();
-
-            using (conn)
-            {
-                SqlCommand cmd = new SqlCommand("UPDATE dbo.SA_Julkaisut SET JufoTunnus = @JufoTunnus, JufoLuokkaKoodi = @JufoLuokkaKoodi where JulkaisunTunnus = @JulkaisunTunnus");
-                cmd.CommandType = CommandType.Text;
-                cmd.Connection = conn;
-
-                // Jufo_ID
-                if (String.IsNullOrEmpty(jufo_ID))
-                {
-                    cmd.Parameters.AddWithValue("@JufoTunnus", DBNull.Value);
-                }
-                else
-                {
-                    cmd.Parameters.AddWithValue("@JufoTunnus", jufo_ID);
-                }
-
-                // Jufo-luokka koodi
-                if (String.IsNullOrEmpty(jufo_luokka))
-                {
-                    cmd.Parameters.AddWithValue("@JufoLuokkaKoodi", DBNull.Value);
-                }
-                else
-                {
-                    cmd.Parameters.AddWithValue("@JufoLuokkaKoodi", jufo_luokka);
-                }
-
-                // JulkaisunTunnus
-                if (String.IsNullOrEmpty(julkTunnus))
-                {
-                    cmd.Parameters.AddWithValue("@JulkaisunTunnus", DBNull.Value);
-                }
-                else
-                {
-                    cmd.Parameters.AddWithValue("@JulkaisunTunnus", julkTunnus);
-                }
-
-                cmd.ExecuteNonQuery();
-            }
-
-            conn.Close();
-
-        }
-
-
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan Julkaisukanavatietokanta-taulusta kaikki tiedot julkaisulle ISSN-tunnuksen perusteella
-        public SqlDataReader Julkaisukanavatietokanta_select_ISSN_tunnuksella(SqlConnection conn, string issn1, string issn2)
-        {
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT * FROM Julkaisukanavatietokanta WHERE ISSN1 = @ekaISSN1 OR ISSN1 = @ekaISSN2 OR ISSN2 = @ekaISSN1 OR ISSN2 = @ekaISSN2";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(issn1))
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN1", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN1", issn1);
-            }
-
-            if (String.IsNullOrEmpty(issn2))
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN2", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN2", issn2);
-            }
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
-
-        }
-
-
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan Julkaisukanavatietokanta-taulusta kaikki tiedot julkaisulle Name-kentan (konferenssin nimen) perusteella
-        public SqlDataReader Julkaisukanavatietokanta_select_konferenssin_nimella(SqlConnection conn, string konf)
-        {
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT * FROM Julkaisukanavatietokanta WHERE (Name = @Name OR Other_Title = @Other_Title) AND Active_binary = 1 AND Type = 'Konferenssi'";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(konf))
-            {
-                cmd.Parameters.AddWithValue("@Name", DBNull.Value);
-                cmd.Parameters.AddWithValue("@Other_Title", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@Name", konf);
-                cmd.Parameters.AddWithValue("@Other_Title", konf);
-            }
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
-
-        }
-
-
-        public SqlDataReader Julkaisukanavatietokanta_select_jufolla(SqlConnection conn, string jufo)
-        {
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT * FROM Julkaisukanavatietokanta WHERE Jufo_ID = @Jufo_ID";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(jufo))
-            {
-                cmd.Parameters.AddWithValue("@Jufo_ID", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@Jufo_ID", jufo);
-            }
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
-
-        }
-
-
-
-
-
-        // Haetaan ODS_ISSN-taulusta parametrina annettua julkaisun tunnusta vastaava issn-tunnus
-        public string ODS_ISSN_hae_issn_tunnus(string server, string julkTunnus)
-        {
-
-            string connectionString_ods_julkaisut = "Server=" + server + ";Database=julkaisut_ods;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_ods_julkaisut);
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT TOP 1 ISSN FROM dbo.ODS_ISSN WHERE JulkaisunTunnus = @JulkaisunTunnus";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(julkTunnus))
-            {
-                cmd.Parameters.AddWithValue("@JulkaisunTunnus", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@JulkaisunTunnus", julkTunnus);
-            }
-
-            string issn = (string)cmd.ExecuteScalar();
-
-            conn.Close();
-
-            return issn;
-
-        }
-
-
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan Julkaisukanavatietokanta-taulusta julkaisukanavan tyyppi ISSN-tunnuksen perusteella
-        public string Julkaisukanavatietokanta_select_tyyppi_ISSN_tunnuksella(string server, string issn1, string issn2)
-        {
-
-
-            string connectionString_mds_julkaisut = "Server=" + server + ";Database=julkaisut_mds;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_mds_julkaisut);
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT TOP 1 Type FROM Julkaisukanavatietokanta WHERE ISSN1 = @ekaISSN1 OR ISSN1 = @ekaISSN2 OR ISSN2 = @ekaISSN1 OR ISSN2 = @ekaISSN2";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(issn1))
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN1", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN1", issn1);
-            }
-
-            if (String.IsNullOrEmpty(issn2))
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN2", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ekaISSN2", issn2);
-            }
-
-            //if (String.IsNullOrEmpty(issn1))
-            //{
-            //    cmd.Parameters.AddWithValue("@ISSN1", DBNull.Value);
-            //    cmd.Parameters.AddWithValue("@ISSN2", DBNull.Value);
-            //}
-            //else
-            //{
-            //    cmd.Parameters.AddWithValue("ISSN1", issn);
-            //    cmd.Parameters.AddWithValue("ISSN2", issn);
-            //}
-
-            string tyyppi = (string)cmd.ExecuteScalar();
-
-            conn.Close();
-
-            return tyyppi;
-
-        }
-
-
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-
-
-        public void SA_Julkaisut_update_ISSN(string server, string julkTunnus, string issnTunnus)
-        {
-
-            string connectionString_ods_julkaisut = "Server=" + server + ";Database=julkaisut_ods;Trusted_Connection=true";
-
-            SqlConnection conn = new SqlConnection(connectionString_ods_julkaisut);
-            conn.Open();
-
-            using (conn)
-            {
-                SqlCommand cmd = new SqlCommand("UPDATE SA_Julkaisut SET ISSN = @ISSN where JulkaisunTunnus = @JulkaisunTunnus");
-                cmd.CommandType = CommandType.Text;
-                cmd.Connection = conn;
-
-                if (String.IsNullOrEmpty(issnTunnus))
-                {
-                    cmd.Parameters.AddWithValue("@ISSN", DBNull.Value);
-                }
-                else
-                {
-                    cmd.Parameters.AddWithValue("@ISSN", issnTunnus);
-                }
-
-                if (String.IsNullOrEmpty(julkTunnus))
-                {
-                    cmd.Parameters.AddWithValue("@JulkaisunTunnus", DBNull.Value);
-                }
-                else
-                {
-                    cmd.Parameters.AddWithValue("@JulkaisunTunnus", julkTunnus);
-                }
-
-                cmd.ExecuteNonQuery();
-            }
-
-            conn.Close();
-
-        }
-
-
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-        //---------------------------------------------------------------------------------------------------------------------
-
-
-        // Haetaan Julkaisukanavatietokanta-taulusta kaikki tiedot julkaisulle ISBN_Root:n perusteella
-        public SqlDataReader Julkaisukanavatietokanta_select_ISBN_Root_perusteella(SqlConnection conn, string isbn_root)
-        {
-
-            conn.Open();
-
-            SqlCommand cmd = new SqlCommand();
-
-            cmd.CommandText = "SELECT * FROM Julkaisukanavatietokanta WHERE ISBN LIKE @ISBN";
-            cmd.CommandType = CommandType.Text;
-            cmd.Connection = conn;
-
-            if (String.IsNullOrEmpty(isbn_root))
-            {
-                cmd.Parameters.AddWithValue("@ISBN", DBNull.Value);
-            }
-            else
-            {
-                cmd.Parameters.AddWithValue("@ISBN", "%" + isbn_root + ";%");
-            }
-
-            SqlDataReader reader = cmd.ExecuteReader();
-
-            return reader;
-
-        }
 
     }
 
