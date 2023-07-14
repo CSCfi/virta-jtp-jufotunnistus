@@ -91,54 +91,45 @@ namespace Jufo_Tunnistus
 
             /*
              
-                //Julkaisutyypit A1 ja A2
-                if (ekaJulkaisutyyppi.Equals("A1") || ekaJulkaisutyyppi.Equals("A2"))
-                {
-                    1 ISSN match -> Tarkistus  
-                }
-
-                // Julkaisutyypit A3 ja C1
-                if (ekaJulkaisutyyppi.Equals("A3") || ekaJulkaisutyyppi.Equals("C1"))
-                {
-                
-                    1 Julkaisulla ISSN tunnus
-		                - Löytyy julkaisukanavatietokannasta -> Tarkistus
-	                2 Julkaisulla ei ISSN tunnusta tai ISSN ei löydy julkaisukanavatietokannasta mutta on ISBN
-		                - ISBN match
-			                - Jolla on ISSN
-				                - Löytyy julkaisukanavatietokannasta -> Tarkistus
-				                - Ei löydy julkaisukanavatietokannasta -> ISBN-juuri
-			                - Jolla ei ISSN -> ISBN-juuri
-		                - Ei ISBN matchia -> ISBN-juuri                                                       
-                
-                }
-
-                // Julkaisutyypit A4 ja C2
-                else if (ekaJulkaisutyyppi.Equals("A4") || ekaJulkaisutyyppi.Equals("C2"))
-                {
-                    Huom. Muutettu "Julkaisulla Ei ISSN tunnusta mutta on ISBN tunnus" käsittelyä siten että ei mennä suoraan ISBN-juuri tarkasteluun. 
-                    Täten tarkastelu on kohdasta "Konferenssia ei löydy julkaisukanavatietokannasta" eteenpäin vastaava kuin A3 ja C1.
-
-                    1 Konferenssi löytyy julkaisukanavatietokannasta -> Tarkistus
-	                2 Konferenssia ei löydy julkaisukanavatietokannasta
-		                - Julkaisulla ISSN tunnus joka löytyy julkaisukanavatietokannasta -> Tarkistus
-			            - Julkaisulla Ei ISSN tunnusta tai sitä ei löydy julkaisukanavatietokannasta mutta on ISBN
-				                - ISBN match
-					                - Jolla on ISSN
-						                - Löytyy julkaisukanavatietokannasta -> Tarkistus
-						                - Ei löydy julkaisukanavatietokannasta -> ISBN-juuri
-					                - Jolla ei ISSN -> ISBN-juuri
-				                - Ei ISBN match -> ISBN-juuri                        
+                Julkaisutyypit A1 ja A2:
                
-                }
+                1 ISSN match -> Tarkistus  
+         
 
-                // Muut julkaisutyypit
-                else if (ekaJulkaisutyyppi.Equals("B1") || ekaJulkaisutyyppi.Equals("B2") || ekaJulkaisutyyppi.Equals("B3") || ekaJulkaisutyyppi.Equals("D1") || ekaJulkaisutyyppi.Equals("D2") || ekaJulkaisutyyppi.Equals("D3") ||
-                    ekaJulkaisutyyppi.Equals("D4") || ekaJulkaisutyyppi.Equals("D5") || ekaJulkaisutyyppi.Equals("D6") || ekaJulkaisutyyppi.Equals("E1") || ekaJulkaisutyyppi.Equals("E2") || ekaJulkaisutyyppi.Equals("E3"))
-                {
-                    1 ISSN match -> Tarkistus               
-                }
+                Julkaisutyypit A3 ja C1:
 
+                1 Julkaisulla ISSN tunnus
+		            - Löytyy julkaisukanavatietokannasta -> Tarkistus
+	            2 Julkaisulla ei ISSN tunnusta tai ISSN ei löydy julkaisukanavatietokannasta mutta on ISBN
+		            - ISBN match
+			            - Jolla on ISSN
+				            - Löytyy julkaisukanavatietokannasta -> Tarkistus
+				            - Ei löydy julkaisukanavatietokannasta -> ISBN-juuri
+			            - Jolla ei ISSN -> ISBN-juuri
+		            - Ei ISBN matchia -> ISBN-juuri                                                       
+                
+                
+                Julkaisutyypit A4 ja C2:
+       
+                Huom. Muutettu "Julkaisulla Ei ISSN tunnusta mutta on ISBN tunnus" käsittelyä siten että ei mennä suoraan ISBN-juuri tarkasteluun. 
+                Täten tunnistus on kohdasta "Konferenssia ei löydy julkaisukanavatietokannasta" eteenpäin vastaava kuin julkaisutyypeillä A3 ja C1.
+
+                1 Konferenssi löytyy julkaisukanavatietokannasta -> Tarkistus
+	            2 Konferenssia ei löydy julkaisukanavatietokannasta
+		            - Julkaisulla ISSN tunnus joka löytyy julkaisukanavatietokannasta -> Tarkistus
+			        - Julkaisulla Ei ISSN tunnusta tai sitä ei löydy julkaisukanavatietokannasta mutta on ISBN
+				            - ISBN match
+					            - Jolla on ISSN
+						            - Löytyy julkaisukanavatietokannasta -> Tarkistus
+						            - Ei löydy julkaisukanavatietokannasta -> ISBN-juuri
+					            - Jolla ei ISSN -> ISBN-juuri
+				            - Ei ISBN match -> ISBN-juuri                        
+                             
+
+                Muut julkaisutyypit (B1, B2, B3, D1, D2, D3, D4, D5, D6, E1, E2, E3):
+
+                1 ISSN match -> Tarkistus               
+                
             */
 
 
