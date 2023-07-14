@@ -77,7 +77,7 @@ namespace Jufo_Tunnistus
 
             tietokantaoperaatiot.kirjoita_datataulu_tietokantaan(dt1, taulu);
             tietokantaoperaatiot.paivita_ISSN_ja_ISBN_tunnukset(taulu);
-            tietokantaoperaatiot.uudelleenjarjesta_indeksit(taulu);
+            tietokantaoperaatiot.uudelleenrakenna_indeksit(taulu);
 
             //goto loppu;
 

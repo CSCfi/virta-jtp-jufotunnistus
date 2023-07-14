@@ -130,6 +130,15 @@ namespace Jufo_Tunnistus
         }
 
 
+        public void uudelleenrakenna_indeksit(string taulu)
+        {
+            SqlConn.Avaa();
+            SqlConn.cmd.CommandText = "ALTER INDEX ALL ON " + taulu + " REBUILD";
+            SqlConn.cmd.ExecuteNonQuery();
+            SqlConn.Sulje();
+        }
+
+
         public void paivita_ISSN_ja_ISBN_tunnukset(string taulu)
         {
             SqlConn.Avaa();
