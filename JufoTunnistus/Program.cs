@@ -77,7 +77,7 @@ namespace Jufo_Tunnistus
 
             tietokantaoperaatiot.kirjoita_datataulu_tietokantaan(dt1, taulu);
             tietokantaoperaatiot.paivita_ISSN_ja_ISBN_tunnukset(taulu);
-            tietokantaoperaatiot.uudelleenrakenna_indeksit(taulu);
+            tietokantaoperaatiot.uudelleenjarjesta_indeksit(taulu);
 
             //goto loppu;
 
@@ -133,7 +133,7 @@ namespace Jufo_Tunnistus
             */
 
 
-            tietokantaoperaatiot.uudelleenrakenna_indeksit("julkaisut_mds.dbo.Julkaisukanavatietokanta");
+            tietokantaoperaatiot.uudelleenjarjesta_indeksit("julkaisut_mds.dbo.Julkaisukanavatietokanta");
 
             tietokantaoperaatiot.tunnista_konferenssi();
             tietokantaoperaatiot.tunnista_ISSN();

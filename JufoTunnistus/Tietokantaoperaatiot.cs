@@ -121,10 +121,10 @@ namespace Jufo_Tunnistus
         }
 
 
-        public void uudelleenrakenna_indeksit(string taulu)
+        public void uudelleenjarjesta_indeksit(string taulu)
         {
             SqlConn.Avaa();
-            SqlConn.cmd.CommandText = "ALTER INDEX ALL ON " + taulu + " REBUILD";
+            SqlConn.cmd.CommandText = "ALTER INDEX ALL ON " + taulu + " REORGANIZE";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();
         }
