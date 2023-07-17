@@ -72,7 +72,7 @@ namespace Jufo_Tunnistus
                     --,DOI          
                 FROM julkaisut_ods.dbo.SA_Julkaisut 
                 WHERE JulkaisunTilaKoodi != -1
-                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','B1','B2','B3','C1','C2','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
+                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','C1','C2') --,'B1','B2','B3','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
                 AND JulkaisunTunnus NOT IN (
                     SELECT JulkaisunTunnus 
                     FROM julkaisut_ods.dbo.EiJufoTarkistusta
@@ -250,11 +250,15 @@ namespace Jufo_Tunnistus
 	                        ,JufoLuokkaKoodi
                             ,JufoLuokkaKoodi_e = 
                                 case
-                                    when t.JulkaisutyyppiKoodi in ('A1', 'A2', 'A3', 'A4', 'C1', 'C2') then
-		                                case
-			                                when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
-		                                end
-                                end  
+			                        when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
+		                        end
+                                --Jos muut julkaisutyypit otetaan mukaan tunnistukseen niin yllä oleva kannattaa muuttaa alla olevaksi
+                                --case
+                                --    when t.JulkaisutyyppiKoodi in ('A1', 'A2', 'A3', 'A4', 'C1', 'C2') then
+		                        --        case
+			                    --            when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
+		                        --        end
+                                --end  
                             ,JufoPaattely
                             ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
                         FROM julkaisut_ods.dbo.SA_JulkaisutTMP t 

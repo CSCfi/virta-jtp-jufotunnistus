@@ -126,10 +126,12 @@ namespace Jufo_Tunnistus
 				            - Ei ISBN match -> ISBN-juuri                        
                              
 
-                Muut julkaisutyypit (B1, B2, B3, D1, D2, D3, D4, D5, D6, E1, E2, E3):
+                (Muut julkaisutyypit (B1, B2, B3, D1, D2, D3, D4, D5, D6, E1, E2, E3):
 
-                1 ISSN match -> Tarkistus               
+                1 ISSN match -> Tarkistus)     
                 
+                -> Muut julkaisutyypit eivät ole enää mukana tunnistuksessa. Jos halutaan mukaan niin poiskommentoidut takaisin käyttöön funktioissa lue_tietokantataulu_datatauluun ja tunnista_ISSN.
+
             */
 
 
