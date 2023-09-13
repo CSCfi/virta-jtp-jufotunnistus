@@ -51,11 +51,33 @@ namespace Jufo_Tunnistus
 
 
             string taulu = "julkaisut_ods.dbo.SA_JulkaisutTMP";
+            string kysely = @"
+                SELECT 
+                    JulkaisunTunnus
+                    ,JulkaisuVuosi
+                    ,OrganisaatioTunnus
+                    ,JulkaisunOrgTunnus
+                    ,JulkaisutyyppiKoodi  
+                    ,JufoTunnus
+                    ,JufoLuokkaKoodi                 
+                    ,KonferenssinNimi                                                         
+                    ,KustantajanNimi   
+                    --,JulkaisunNimi 
+                    --,EmojulkaisunNimi
+                    --,LehdenNimi   
+                    --,DOI          
+                FROM julkaisut_ods.dbo.SA_Julkaisut 
+                WHERE JulkaisunTilaKoodi != -1
+                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','C1','C2') --,'B1','B2','B3','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
+                AND JulkaisunTunnus NOT IN (
+                    SELECT JulkaisunTunnus 
+                    FROM julkaisut_ods.dbo.EiJufoTarkistusta
+                )";
 
             tietokantaoperaatiot.tyhjenna_taulu(taulu);
 
             // Taulun SA_Julkaisut lukeminen ja muokkaus
-            DataTable dt1 = tietokantaoperaatiot.lue_tietokantataulu_datatauluun();
+            DataTable dt1 = tietokantaoperaatiot.lue_tietokantataulu_datatauluun(kysely);
 
             foreach (DataRow row in dt1.Rows)
             {
@@ -135,7 +157,7 @@ namespace Jufo_Tunnistus
             */
 
 
-            tietokantaoperaatiot.uudelleenjarjesta_indeksit("julkaisut_mds.dbo.Julkaisukanavatietokanta");
+            // tietokantaoperaatiot.uudelleenjarjesta_indeksit("julkaisut_mds.dbo.Julkaisukanavatietokanta");
 
             tietokantaoperaatiot.tunnista_konferenssi();
             tietokantaoperaatiot.tunnista_ISSN();

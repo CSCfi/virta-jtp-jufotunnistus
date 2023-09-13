@@ -17,6 +17,7 @@ namespace Jufo_Tunnistus
             cmd.CommandTimeout = 180;
             cmd.Connection = conn;
         }
+        
         public void Avaa()
         {
             conn.Open();
@@ -53,31 +54,9 @@ namespace Jufo_Tunnistus
         }
 
 
-        public DataTable lue_tietokantataulu_datatauluun()
+        public DataTable lue_tietokantataulu_datatauluun(string kysely)
         {         
-            string kysely = @"
-                SELECT 
-                    JulkaisunTunnus
-                    ,JulkaisuVuosi
-                    ,OrganisaatioTunnus
-                    ,JulkaisunOrgTunnus
-                    ,JulkaisutyyppiKoodi  
-                    ,JufoTunnus
-                    ,JufoLuokkaKoodi                 
-                    ,KonferenssinNimi                                                         
-                    ,KustantajanNimi   
-                    --,JulkaisunNimi 
-                    --,EmojulkaisunNimi
-                    --,LehdenNimi   
-                    --,DOI          
-                FROM julkaisut_ods.dbo.SA_Julkaisut 
-                WHERE JulkaisunTilaKoodi != -1
-                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','C1','C2') --,'B1','B2','B3','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
-                AND JulkaisunTunnus NOT IN (
-                    SELECT JulkaisunTunnus 
-                    FROM julkaisut_ods.dbo.EiJufoTarkistusta
-                )";
-
+        
             SqlConn.Avaa();
             SqlConn.cmd.CommandText = kysely;
 
@@ -203,14 +182,12 @@ namespace Jufo_Tunnistus
                          JufoTunnus
                         ,jktk.Jufo_ID
                         ,JufoLuokkaKoodi
-	                    ,JufoLuokkaKoodi_e =        
-		                    case
-			                    when jktk.Jufo_ID is not null and charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';')
-		                    end
+	                    ,JufoLuokkaKoodi_e = ca.taso
                         ,JufoPaattely
-                        ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
+                        ,rn = row_number() over (partition by t.JulkaisunTunnus order by ca.Taso desc)
                     FROM julkaisut_ods.dbo.SA_JulkaisutTMP t
                     INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.Name = t.KonferenssinNimi or jktk.Other_Title = t.KonferenssinNimi
+	                CROSS APPLY (select top 1 Taso,Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh where jh.Jufo_ID = jktk.Jufo_ID and jh.vuosi >= t.JulkaisuVuosi order by jh.Vuosi-t.JulkaisuVuosi) ca
                     WHERE t.JufoTunnus is null
                     and jktk.Active_binary = 1 
                     and jktk.[Type] = 'Konferenssi'
@@ -244,30 +221,25 @@ namespace Jufo_Tunnistus
                     SqlConn.cmd.CommandText =
                         @"
                         WITH t as (
-                        SELECT 
-                            JufoTunnus
-                            ,jktk.Jufo_ID
-	                        ,JufoLuokkaKoodi
-                            ,JufoLuokkaKoodi_e = 
-                                case
-			                        when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
-		                        end
-                                --Jos muut julkaisutyypit otetaan mukaan tunnistukseen niin yllä oleva kannattaa muuttaa alla olevaksi
-                                --case
-                                --    when t.JulkaisutyyppiKoodi in ('A1', 'A2', 'A3', 'A4', 'C1', 'C2') then
-		                        --        case
-			                    --            when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
-		                        --        end
-                                --end  
-                            ,JufoPaattely
-                            ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
-                        FROM julkaisut_ods.dbo.SA_JulkaisutTMP t 
-                        INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = t.ISSN" + j + @" 
-                        OUTER APPLY (select taso = nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':')) oa 
-                        WHERE (t.JufoTunnus is null or t.JufoPaattely = 'issn')                       
-                        and jktk.Active_binary = '1'
-                        and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
-                        and jktk.Jufo_ID is not null
+                            SELECT 
+                                JufoTunnus
+                                ,jktk.Jufo_ID
+	                            ,JufoLuokkaKoodi
+                                ,JufoLuokkaKoodi_e = ca.taso
+                                    /* Jos muut julkaisutyypit otetaan mukaan tunnistukseen niin yllä oleva kannattaa muuttaa alla olevaksi
+                                    case
+                                        when t.JulkaisutyyppiKoodi in ('A1', 'A2', 'A3', 'A4', 'C1', 'C2') then ca.taso
+                                    end
+                                    */  
+                                ,JufoPaattely
+                                ,rn = row_number() over (partition by t.JulkaisunTunnus order by ca.Taso desc)
+                            FROM julkaisut_ods.dbo.SA_JulkaisutTMP t 
+                            INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = t.ISSN" + j + @" 
+                            CROSS APPLY (select top 1 Taso,Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh where jh.Jufo_ID = jktk.Jufo_ID and jh.vuosi >= t.JulkaisuVuosi order by jh.Vuosi-t.JulkaisuVuosi) ca
+                            WHERE (t.JufoTunnus is null or t.JufoPaattely = 'issn')                       
+                            and jktk.Active_binary = '1'
+                            and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
+                            and jktk.Jufo_ID is not null
                         )
                 
                         UPDATE t 
@@ -275,7 +247,7 @@ namespace Jufo_Tunnistus
                              JufoTunnus = Jufo_ID
 	                        ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
                             ,JufoPaattely = 'issn'
-                        WHERE t.rn = 1 and coalesce(t.JufoLuokkaKoodi_e,-2) >= coalesce(t.JufoLuokkaKoodi,-2)";
+                        WHERE t.rn = 1 and t.JufoLuokkaKoodi_e >= coalesce(t.JufoLuokkaKoodi,-2)";
 
                     SqlConn.cmd.ExecuteNonQuery();
                 }
@@ -323,17 +295,14 @@ namespace Jufo_Tunnistus
                                 JufoTunnus
                                 ,jktk.Jufo_ID
 	                            ,JufoLuokkaKoodi
-	                            ,JufoLuokkaKoodi_e =     
-		                            case
-			                            when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then oa.taso
-		                            end 
+	                            ,JufoLuokkaKoodi_e = ca.Taso
                                 ,JufoPaattely
-                                ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
+                                ,rn = row_number() over (partition by t.JulkaisunTunnus order by ca.Taso desc)
                             FROM julkaisut_ods.dbo.SA_JulkaisutTMP t 
                             INNER JOIN julkaisut_ods.dbo.ODS_ISBN i1 on (i1.ISBN = t.ISBN1 or i1.ISBN = t.ISBN2) and i1.JulkaisunTunnus != t.JulkaisunTunnus
                             INNER JOIN ##temp_issn tmp on tmp.JulkaisunTunnus = i1.JulkaisunTunnus 
                             INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = tmp.ISSN" + j + @"
-                            OUTER APPLY (select taso = nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':')) oa 
+                            CROSS APPLY (select top 1 Taso,Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh where jh.Jufo_ID = jktk.Jufo_ID and jh.vuosi >= t.JulkaisuVuosi order by jh.Vuosi-t.JulkaisuVuosi) ca
                             WHERE (t.JufoTunnus is null or t.JufoPaattely = 'isbn')    
                             --and (t.JulkaisutyyppiKoodi in ('A3','C1') or (t.JulkaisutyyppiKoodi in ('A4','C2') and (t.ISSN1 is not null or t.ISSN2 is not null))) 
                             -- Jos halutaan tehdä A4 ja C2 tyypeille vastaava tarkistus kuin A3 ja C1 tyypeille niin yllä oleva korvataan alla olevalla
@@ -348,7 +317,7 @@ namespace Jufo_Tunnistus
                              JufoTunnus = Jufo_ID
 	                        ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
                             ,JufoPaattely = 'isbn'
-                        WHERE t.rn = 1 and coalesce(t.JufoLuokkaKoodi_e,-2) > coalesce(t.JufoLuokkaKoodi,-2)";
+                        WHERE t.rn = 1 and t.JufoLuokkaKoodi_e > coalesce(t.JufoLuokkaKoodi,-2)";
 
                     SqlConn.cmd.ExecuteNonQuery();
                 }
@@ -399,15 +368,12 @@ namespace Jufo_Tunnistus
 
                 ;WITH t AS (
                     SELECT
-	                    JufoTunnus
+	                     JufoTunnus
                         ,jktk.Jufo_ID
 	                    ,JufoLuokkaKoodi
-	                    ,JufoLuokkaKoodi_e = 
-		                    case
-			                    when charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History) > 0 then nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';')
-		                    end
+	                    ,JufoLuokkaKoodi_e = ca.taso
                         ,JufoPaattely
-                        ,rn = row_number() over(partition by t.JulkaisunTunnus order by coalesce(nullif(nullif(substring(Jufo_History,charindex(cast(t.JulkaisuVuosi as char(4)),Jufo_History)+5,1),';'),':'),-1) desc)
+                        ,rn = row_number() over (partition by t.JulkaisunTunnus order by ca.Taso desc)
                     FROM julkaisut_ods.dbo.SA_JulkaisutTMP t
                     OUTER APPLY (
 	                    select	
@@ -416,6 +382,7 @@ namespace Jufo_Tunnistus
 		                    ,ISBN_juuri2 = LEFT([ISBN2],nullif(charindex('-',[ISBN2],charindex('-',[ISBN2], (charindex('-',[ISBN2])+1))+1)-1,-1))
                     ) oa
                     INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2
+	                CROSS APPLY (select top 1 Taso,Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh where jh.Jufo_ID = jktk.Jufo_ID and jh.vuosi >= t.JulkaisuVuosi order by jh.Vuosi-t.JulkaisuVuosi) ca
                     WHERE t.JufoTunnus is null
                     and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2')
                     and (lower(t.KustantajanNimi) = lower(jktk.Name) or lower(t.KustantajanNimi) = lower(jktk.Title))     
@@ -424,7 +391,7 @@ namespace Jufo_Tunnistus
 
                 UPDATE t
                 SET
-	                JufoTunnus = Jufo_ID
+	                 JufoTunnus = Jufo_ID
 	                ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
                     ,JufoPaattely = 'isbn_juuri'
                 WHERE t.rn = 1
