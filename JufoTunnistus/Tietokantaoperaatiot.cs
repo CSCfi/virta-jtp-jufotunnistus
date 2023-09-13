@@ -432,6 +432,14 @@ namespace Jufo_Tunnistus
         }
 
 
+        public void paivita_poikkeukset()
+        {
+            SqlConn.Avaa();
+            SqlConn.cmd.CommandText = "EXEC julkaisut_ods.dbo.JufoPoikkeukset_paivitys";
+            SqlConn.cmd.ExecuteNonQuery();
+            SqlConn.Sulje();
+        }
+
     }
 
 }

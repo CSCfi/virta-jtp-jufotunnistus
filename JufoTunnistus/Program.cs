@@ -176,6 +176,8 @@ namespace Jufo_Tunnistus
             tietokantaoperaatiot.kirjoita_jufot_tmp_tauluun();
             // Tunnistetut tiedot SA_Julkaisut-tauluun
             tietokantaoperaatiot.paivita_jufot_sa_tauluun();
+            // Poikkeukset
+            tietokantaoperaatiot.paivita_poikkeukset();
 
 
 
