@@ -17,6 +17,7 @@ namespace Jufo_Tunnistus
             }
 
             // Palvelin
+            //string server ="dwitjutisql1";  //debuggaukseen
             string server = args[0];
             string connString = "Server=" + server + ";Trusted_Connection=true";
 
@@ -85,7 +86,7 @@ namespace Jufo_Tunnistus
                 row["KustantajanNimi"] = apufunktiot.muokkaa_nimea(row["KustantajanNimi"].ToString());        
                 
                 // Jufo-tunnus ja -luokka asetetaan nulliksi   
-                row["JufoTunnus"] = null;
+               // row["JufoTunnus"] = null;
                 row["JufoLuokkaKoodi"] = null;
 
                 // Jos halutaan tehdä samalla duplikaatti-/yhteisjulkaisutarkistuksen edellyttämät muokkaukset niin alla olevat mukaan. 

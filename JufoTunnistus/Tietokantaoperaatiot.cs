@@ -176,7 +176,7 @@ namespace Jufo_Tunnistus
         {
             SqlConn.Avaa();
 
-            SqlConn.cmd.CommandText = @"
+            SqlConn.cmd.CommandText = /* @"
                 WITH t AS (
                     SELECT
                          JufoTunnus
@@ -194,17 +194,69 @@ namespace Jufo_Tunnistus
                     and jktk.Jufo_ID is not null
                     and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
                     and t.JulkaisutyyppiKoodi in ('A4','C2')
-                )
-
                 UPDATE t
                 SET 
 	                 JufoTunnus = Jufo_ID
 	                ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
                     ,JufoPaattely = 'konf'
-                WHERE t.rn = 1";
+                WHERE t.rn = 1"; /*/
+                @"
+                WITH t AS (
+               SELECT
+                   Jufo_ID = coalesce(jktk5.Jufo_ID, jktk4.Jufo_ID, jktk3.Jufo_ID, jktk2.Jufo_ID, jktk1.Jufo_ID)
+                   , JufoLuokkaKoodi = null
+                   , JufoLuokkaKoodi_e = ca.Taso
+                   , JufoPaattely = null
+                   , rn = row_number() over(partition by t.JulkaisunTunnus order by ca.Taso desc)
+               FROM julkaisut_ods.dbo.SA_JulkaisutTMP t
+               INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk1 ON jktk1.Name = t.KonferenssinNimi or jktk1.Other_Title = t.KonferenssinNimi
+               -- Jos kanava ei ole toiminnassa ja sillä on jatkaja
+               LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk2 ON jktk2.Jufo_ID = jktk1.Continued_by and jktk1.Continued_by is not null and not(jktk1.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk1.Year_End, 1900))
+               LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk3 ON jktk3.Jufo_ID = jktk2.Continued_by and jktk2.Continued_by is not null and not(jktk2.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk2.Year_End, 1900))            
+               LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk4 ON jktk4.Jufo_ID = jktk3.Continued_by and jktk3.Continued_by is not null and not(jktk3.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk3.Year_End, 1900))            
+               LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk5 ON jktk5.Jufo_ID = jktk4.Continued_by and jktk4.Continued_by is not null and not(jktk4.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk4.Year_End, 1900))
+               -- Joko alkuperäisen kanavan tai jatkajan jufo - taso ensimmäiseltä vuodelta joka on yhtä suuri tai suurempi kuin julkaisuvuosi
+               CROSS APPLY(select top 1 Taso, Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh where jh.Jufo_ID = coalesce(jktk5.Jufo_ID, jktk4.Jufo_ID, jktk3.Jufo_ID, jktk2.Jufo_ID, jktk1.Jufo_ID) and jh.vuosi >= t.JulkaisuVuosi order by jh.Vuosi - t.JulkaisuVuosi) ca
+               WHERE t.JufoTunnus is null            
+               and jktk1.Active_binary = 1            
+               and jktk1.[Type] = 'Konferenssi'            
+               and jktk1.Jufo_ID is not null            
+               and(coalesce(jktk1.active, '') = 'Active' or t.JulkaisuVuosi <= coalesce(jktk1.Year_End, 1900) or           
+                   coalesce(jktk2.active, '') = 'Active' or t.JulkaisuVuosi <= coalesce(jktk2.Year_End, 1900) or            
+                   coalesce(jktk3.active, '') = 'Active' or t.JulkaisuVuosi <= coalesce(jktk3.Year_End, 1900) or            
+                   coalesce(jktk4.active, '') = 'Active' or t.JulkaisuVuosi <= coalesce(jktk4.Year_End, 1900) or            
+                   coalesce(jktk5.active, '') = 'Active' or t.JulkaisuVuosi <= coalesce(jktk5.Year_End, 1900)
+               )            
+               and t.JulkaisutyyppiKoodi in ('A4', 'C2')
+               )
+               select * into #konfJufoTmp from  t
+               UPDATE julkaisut_ods.dbo.SA_JulkaisutTMP
+               SET
+                    JufoTunnus = tmp.Jufo_ID
+                   , JufoLuokkaKoodi = tmp.JufoLuokkaKoodi_e
+                   , JufoPaattely = 'konf'
+                   FROM #konfJufoTmp tmp
+               WHERE tmp.rn = 1;
 
-            SqlConn.cmd.ExecuteNonQuery();
+               DROP TABLE #konfJufoTmp";
+            /*UPDATE t
+                SET
+                     JufoTunnus = Jufo_ID
+                    , JufoLuokkaKoodi = JufoLuokkaKoodi_e
+                    , JufoPaattely = 'konf'
+                WHERE t.rn = 1";*/
 
+            try
+            {
+                // Execute your SQL command
+                SqlConn.cmd.ExecuteNonQuery();
+            }
+            catch (SqlException ex)
+            {
+                // Handle SQL exceptions
+                Console.WriteLine("SQL Error: " + ex.Message);
+            }
+             
             SqlConn.Sulje();
         }
 
@@ -235,7 +287,9 @@ namespace Jufo_Tunnistus
                                 ,rn = row_number() over (partition by t.JulkaisunTunnus order by ca.Taso desc)
                             FROM julkaisut_ods.dbo.SA_JulkaisutTMP t 
                             INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = t.ISSN" + j + @" 
-                            CROSS APPLY (select top 1 Taso,Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh where jh.Jufo_ID = jktk.Jufo_ID and jh.vuosi >= t.JulkaisuVuosi order by jh.Vuosi-t.JulkaisuVuosi) ca
+                            CROSS APPLY (select top 1 taso,Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh 
+                        where jh.Jufo_ID = jktk.Jufo_ID and jh.vuosi >= t.JulkaisuVuosi
+                        order by jh.Vuosi-t.JulkaisuVuosi) ca
                             WHERE (t.JufoTunnus is null or t.JufoPaattely = 'issn')                       
                             and jktk.Active_binary = '1'
                             and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
@@ -247,9 +301,17 @@ namespace Jufo_Tunnistus
                              JufoTunnus = Jufo_ID
 	                        ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
                             ,JufoPaattely = 'issn'
-                        WHERE t.rn = 1 and t.JufoLuokkaKoodi_e >= coalesce(t.JufoLuokkaKoodi,-2)";
-
-                    SqlConn.cmd.ExecuteNonQuery();
+                        WHERE t.rn = 1 and ( t.JufoLuokkaKoodi_e IS NULL OR t.JufoLuokkaKoodi_e >= coalesce(t.JufoLuokkaKoodi,-2))";
+                    try
+                    {
+                        // Execute your SQL command
+                        SqlConn.cmd.ExecuteNonQuery();
+                    }
+                    catch (SqlException ex)
+                    {
+                        // Handle SQL exceptions
+                        Console.WriteLine("SQL Error: " + ex.Message);
+                    }
                 }
 
             }
