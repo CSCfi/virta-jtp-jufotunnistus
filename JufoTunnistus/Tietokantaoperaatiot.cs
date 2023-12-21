@@ -199,7 +199,7 @@ namespace Jufo_Tunnistus
 	                 JufoTunnus = Jufo_ID
 	                ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
                     ,JufoPaattely = 'konf'
-                WHERE t.rn = 1"; /*/
+                WHERE t.rn = 1";  */
                 @"
                 WITH t AS (
                SELECT
@@ -239,12 +239,15 @@ namespace Jufo_Tunnistus
                WHERE tmp.rn = 1;
 
                DROP TABLE #konfJufoTmp";
-            /*UPDATE t
+            /*
+             UPDATE t
                 SET
                      JufoTunnus = Jufo_ID
                     , JufoLuokkaKoodi = JufoLuokkaKoodi_e
                     , JufoPaattely = 'konf'
                 WHERE t.rn = 1";*/
+
+
 
             try
             {
@@ -290,7 +293,7 @@ namespace Jufo_Tunnistus
                             CROSS APPLY (select top 1 taso,Vuosi from julkaisut_mds.dbo.Julkaisukanavatietokanta_jufohistory jh 
                         where jh.Jufo_ID = jktk.Jufo_ID and jh.vuosi >= t.JulkaisuVuosi
                         order by jh.Vuosi-t.JulkaisuVuosi) ca
-                            WHERE (t.JufoTunnus is null or t.JufoPaattely = 'issn')                       
+                            WHERE  (t.JufoTunnus IS NULL OR t.JufoPaattely = 'issn')                         
                             and jktk.Active_binary = '1'
                             and (jktk.active = 'Active' or t.JulkaisuVuosi <= jktk.Year_End) 
                             and jktk.Jufo_ID is not null
@@ -302,6 +305,8 @@ namespace Jufo_Tunnistus
 	                        ,JufoLuokkaKoodi = JufoLuokkaKoodi_e
                             ,JufoPaattely = 'issn'
                         WHERE t.rn = 1 and ( t.JufoLuokkaKoodi_e IS NULL OR t.JufoLuokkaKoodi_e >= coalesce(t.JufoLuokkaKoodi,-2))";
+                        //Original
+                        //WHERE t.rn = 1 and t.JufoLuokkaKoodi_e >= coalesce(t.JufoLuokkaKoodi, -2)";
                     try
                     {
                         // Execute your SQL command
