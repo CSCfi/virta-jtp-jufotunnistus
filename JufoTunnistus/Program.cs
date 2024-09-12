@@ -17,8 +17,10 @@ namespace Jufo_Tunnistus
             }
 
             // Palvelin
-            // string server ="dwitjutisql19";  //debuggaukseen
+            //string server ="dwitjutisql19";  //debuggaukseen
             string server = args[0];
+           
+
             string connString = "Server=" + server + ";Trusted_Connection=true";
 
             // Täällä ovat tarvittavat apufunktiot ja tietokantaoperaatiot
@@ -31,27 +33,32 @@ namespace Jufo_Tunnistus
             //
             // Ohjelman rakenne
             //
-            // 1. Alustus
-            // - SA_julkaisut taulun lukeminen muistiin ja nimikenttien muokkaus
-            // - Nimikenttien kirjoitus tauluun SA_julkaisutTMP
-            // - ISSN ja ISBN kenttien päivitys tauluun SA_julkaisutTMP
+            // 1 Alustus
+            // - SA_julkaisut-taulun lukeminen ja nimikenttien muokkaus
+            // - Nimikenttien kirjoitus julkaisut_temp-tauluun
+            // - ISSN- ja ISBN-kenttien päivitys julkaisut_temp-tauluun
             // - Indeksien päivitys
             //
-            // 2. Tunnistus
-            // - JufoID:n tunnistus julkaisukanavatietokannasta ja tietojen päivitys tauluun SA_julkaisutTMP 
+            // 2 Tunnistus
+            // - JufoID:n tunnistus julkaisukanavatietokannasta
+            // - Tunnistamatta jääneiden julkaisujen tietojen täydennys VirtaAdditions-taulusta
+            // - Kanavien jufo-luokan päivitys ja rankkaus
             //
-            // 3. Päivitys
-            // - Alkuperäiset tiedot tauluun Jufot_TMP
-            // - Tunnistetut tiedot tauluun SA_Julkaisut
+            // 3 Päivitys
+            // - Alkuperäiset tiedot talteen
+            // - Tunnistetut tiedot SA_Julkaisut-tauluun
             //
             // ---------------------------------------------------------------------------------------------------------------
 
+
+            string taulu_julkaisut_sa = "julkaisut_ods.dbo.SA_Julkaisut"; // alkuperäinen
+            string taulu_julkaisut_temp = "julkaisut_ods.dbo.SA_Julkaisut_TMP"; // muokatut nimet
+            string taulu_jufot_temp = "julkaisut_ods.dbo.SA_Julkaisut_jufot_TMP"; // kaikki tunnistetut kanavat
 
 
             //// Vaihe 1
 
 
-            string taulu = "julkaisut_ods.dbo.SA_JulkaisutTMP";
             string kysely = @"
                 SELECT 
                     JulkaisunTunnus
@@ -75,17 +82,16 @@ namespace Jufo_Tunnistus
                     FROM julkaisut_ods.dbo.EiJufoTarkistusta
                 )";
 
-            tietokantaoperaatiot.tyhjenna_taulu(taulu);
+            tietokantaoperaatiot.Tyhjenna_taulu(taulu_julkaisut_temp);
 
-            // Taulun SA_Julkaisut lukeminen ja muokkaus
-            DataTable dt1 = tietokantaoperaatiot.lue_tietokantataulu_datatauluun(kysely);
+            // Taulun SA_Julkaisut luku tietokannasta ja muokkaus
+            DataTable dt1 = tietokantaoperaatiot.Lue_tietokantataulu_datatauluun(kysely);
 
             foreach (DataRow row in dt1.Rows)
             {
                 row["KonferenssinNimi"] = apufunktiot.muokkaa_nimea(row["KonferenssinNimi"].ToString());               
                 row["KustantajanNimi"] = apufunktiot.muokkaa_nimea(row["KustantajanNimi"].ToString());        
                 
-                // Jufo-tunnus ja -luokka asetetaan nulliksi   
                 row["JufoTunnus"] = null;
                 row["JufoLuokkaKoodi"] = null;
 
@@ -98,11 +104,10 @@ namespace Jufo_Tunnistus
                 //row["DOI"] = apufunktiot.muokkaa_DOI(row["DOI"].ToString());
             }
 
-            tietokantaoperaatiot.kirjoita_datataulu_tietokantaan(dt1, taulu);
-            tietokantaoperaatiot.paivita_ISSN_ja_ISBN_tunnukset(taulu);
-            tietokantaoperaatiot.uudelleenrakenna_indeksit(taulu);
+            tietokantaoperaatiot.Kirjoita_datataulu_tietokantaan(dt1, taulu_julkaisut_temp);
+            tietokantaoperaatiot.Paivita_ISSN_ja_ISBN_tunnukset(taulu_julkaisut_temp);
 
-            //goto loppu;
+            tietokantaoperaatiot.Uudelleenrakenna_indeksit(taulu_julkaisut_temp);
 
 
 
@@ -115,12 +120,12 @@ namespace Jufo_Tunnistus
             /*
              
                 Julkaisutyypit A1 ja A2:
-               
+                -----------------------------------------------
                 1 ISSN match -> Tarkistus  
-         
+            
 
                 Julkaisutyypit A3 ja C1:
-
+                -----------------------------------------------
                 1 Julkaisulla ISSN tunnus
 		            - Löytyy julkaisukanavatietokannasta -> Tarkistus
 	            2 Julkaisulla ei ISSN tunnusta tai ISSN ei löydy julkaisukanavatietokannasta mutta on ISBN
@@ -133,7 +138,7 @@ namespace Jufo_Tunnistus
                 
                 
                 Julkaisutyypit A4 ja C2:
-       
+                -----------------------------------------------
                 Huom. Muutettu "Julkaisulla Ei ISSN tunnusta mutta on ISBN tunnus" käsittelyä siten että ei mennä suoraan ISBN-juuri tarkasteluun. 
                 Täten tunnistus on kohdasta "Konferenssia ei löydy julkaisukanavatietokannasta" eteenpäin vastaava kuin julkaisutyypeillä A3 ja C1.
 
@@ -149,47 +154,89 @@ namespace Jufo_Tunnistus
 				            - Ei ISBN match -> ISBN-juuri                        
                              
 
-                (Muut julkaisutyypit (B1, B2, B3, D1, D2, D3, D4, D5, D6, E1, E2, E3):
+                Muut julkaisutyypit (B1, B2, B3, D1, D2, D3, D4, D5, D6, E1, E2, E3):
+                ---------------------------------------------------------------------
+                1 ISSN match -> Tarkistus    
+                -> ! Muut julkaisutyypit eivät ole enää mukana tunnistuksessa. Jos halutaan mukaan niin muokattava ensimmäistä kyselyä.
 
-                1 ISSN match -> Tarkistus)     
-                
-                -> Muut julkaisutyypit eivät ole enää mukana tunnistuksessa. Jos halutaan mukaan niin poiskommentoidut takaisin käyttöön funktioissa lue_tietokantataulu_datatauluun ja tunnista_ISSN.
+            */
 
+
+            /* 
+                Tunnistukset ajetaan yksi kerrallaan:
+                    - Tunnistus tehdään sellaisille julkaisuille, joita ei ole jufot_temp-taulussa
+                    - Tunnistetut kanavat kirjoitetaan jufot_temp-tauluun
+                    - Tarkistetaan kanavien jatkajat ja päivitetään tieto kenttään JufoTunnus_actual
+                        - Jos kanava on aktiivinen tai päättymisvuosi julkaisuvuoden jälkeen, niin JufoTunnus_actual saa arvoksi kyseisen kanavan tunnuksen
+                        - Jos kanava ei ole aktiivinen tai päättymisvuosi julkaisuvuoden jälkeen, mutta sillä on jatkaja, 
+                          joka on aktiivinen tai päättymisvuosi julkaisuvuoden jälkeen, niin JufoTunnus_actual saa arvoksi jatkavan kanavan tunnuksen (päättely ketjutetaan x kertaa)
+                        - Jos kanava on inaktiivinen ja päättymisvuosi ennen julkaisuvuotta eikä jatkajaa ole, niin JufoTunnus_actual saa arvoksi null
+                    - Poistetaan jufot_temp-taulusta ne julkaisut, joiden JufoTunnus_actual on null
+                    - Varsinaisten tunnistusten jälkeen katsotaan VirtaAdditions taulusta, löytyykö tunnistamatta jääneille julkaisuille kanava
+
+                Tunnistusten jälkeen 
+                    - Haetaan kaikille kanaville jufo-luokka
+                    - Päivitetään poikkeustapausten jufo-luokat
+                    - Asetetaan kanavat suuruusjärjestykseen niin että korkeimman luokan omaava kanava (niistä ensimmäisenä tunnistettu) rankataan ykköseksi
+                      Tämän jälkeen kullakin julkaisulla on yksi korkeimmalle rankattu julkaisukanava
             */
 
 
             // tietokantaoperaatiot.uudelleenjarjesta_indeksit("julkaisut_mds.dbo.Julkaisukanavatietokanta");
 
-            tietokantaoperaatiot.tunnista_konferenssi();
-            tietokantaoperaatiot.tunnista_ISSN();
-            tietokantaoperaatiot.tunnista_ISBN();
-            tietokantaoperaatiot.tunnista_ISBN_juuri();
+
+            tietokantaoperaatiot.Tyhjenna_jufot_temp_taulu(taulu_jufot_temp);
+
+            Action<string,string>[] metodit = new Action<string,string>[5] { 
+                tietokantaoperaatiot.Tunnista_konferenssi, 
+                tietokantaoperaatiot.Tunnista_ISSN,
+                tietokantaoperaatiot.Tunnista_ISBN,
+                tietokantaoperaatiot.Tunnista_ISBN_juuri,
+                tietokantaoperaatiot.Hae_virta_additions
+            };
+
+            foreach (Action<string,string> metodi in metodit)
+            {
+                metodi.Invoke(taulu_julkaisut_temp, taulu_jufot_temp);
+                tietokantaoperaatiot.Hae_kanavan_jatkajat(taulu_jufot_temp);
+                tietokantaoperaatiot.Poista_Inaktiiviset(taulu_jufot_temp);
+            };
+
+
+            tietokantaoperaatiot.Hae_jufo_tasot(taulu_jufot_temp);
+            tietokantaoperaatiot.Paivita_poikkeukset();
+
+            tietokantaoperaatiot.Rankkaa_jufo_kanavat(taulu_jufot_temp);
 
 
 
             // ---------------------------------------------------------------------------------------------------------------
 
-
+            
             //// Vaihe 3
 
 
-            // Alkuperäiset tiedot Jufot_TMP-tauluun
-            tietokantaoperaatiot.kirjoita_jufot_tmp_tauluun();
-            // Tunnistetut tiedot SA_Julkaisut-tauluun
-            tietokantaoperaatiot.paivita_jufot_sa_tauluun();
-            // Poikkeukset
-            tietokantaoperaatiot.paivita_poikkeukset();
+            // Alkuperäiset jufo-tiedot talteen
+            tietokantaoperaatiot.Kirjoita_alkuperaiset_jufot_tmp_tauluun(taulu_julkaisut_sa);
+
+            // Tunnistettujen tietojen päivitys alkuperäiseen tauluun
+            // Tehdään ensin julkaisut_temp-tauluun, voisi tehdä suoraan julkaisut_sa-tauluun
+
+            // Tunnistetut tiedot julkaisut_temp-tauluun
+            tietokantaoperaatiot.Paivita_jufot_julkaisut_temp_tauluun(taulu_julkaisut_temp, taulu_jufot_temp);
+
+            // Tunnistetut tiedot sa-tauluun
+            tietokantaoperaatiot.Paivita_jufot_sa_tauluun(taulu_julkaisut_sa, taulu_julkaisut_temp);           
 
 
 
             // ---------------------------------------------------------------------------------------------------------------
 
-            loppu:
 
+            //loppu
 
             //Console.WriteLine("Loppu");
             //Console.ReadLine();
-            ;
 
 
         }
