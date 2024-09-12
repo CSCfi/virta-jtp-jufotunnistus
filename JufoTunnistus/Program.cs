@@ -185,7 +185,7 @@ namespace Jufo_Tunnistus
             // tietokantaoperaatiot.uudelleenjarjesta_indeksit("julkaisut_mds.dbo.Julkaisukanavatietokanta");
 
 
-            tietokantaoperaatiot.Tyhjenna_jufot_temp_taulu(taulu_jufot_temp);
+            tietokantaoperaatiot.Tyhjenna_taulu(taulu_jufot_temp);
 
             Action<string,string>[] metodit = new Action<string,string>[5] { 
                 tietokantaoperaatiot.Tunnista_konferenssi, 

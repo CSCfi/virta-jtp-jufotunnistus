@@ -174,15 +174,6 @@ namespace Jufo_Tunnistus
         }
 
 
-        public void Tyhjenna_jufot_temp_taulu(string taulu_jufot)
-        {
-            SqlConn.Avaa();
-            SqlConn.cmd.CommandText = "TRUNCATE TABLE " + taulu_jufot;
-            SqlConn.cmd.ExecuteNonQuery();
-            SqlConn.Sulje();
-        }
-
-
         public void Tunnista_konferenssi(string taulu_julkaisut, string taulu_jufot)
         {
             SqlConn.Avaa();
