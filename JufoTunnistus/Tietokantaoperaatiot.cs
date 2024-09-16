@@ -19,7 +19,7 @@ namespace Jufo_Tunnistus
                 Connection = conn
             };
         }
-        
+
         public void Avaa()
         {
             conn.Open();
@@ -57,8 +57,8 @@ namespace Jufo_Tunnistus
 
 
         public DataTable Lue_tietokantataulu_datatauluun(string kysely)
-        {         
-        
+        {
+
             SqlConn.Avaa();
             SqlConn.cmd.CommandText = kysely;
 
@@ -193,7 +193,7 @@ namespace Jufo_Tunnistus
                 and jktk.[Type] = 'Konferenssi'
                 and jktk.Jufo_ID is not null
                 and t.JulkaisutyyppiKoodi in ('A4','C2')";
-         
+
             try
             {
                 // Execute your SQL command    
@@ -204,7 +204,7 @@ namespace Jufo_Tunnistus
                 // Handle SQL exceptions
                 Console.WriteLine("SQL Error: " + ex.Message);
             }
-             
+
             SqlConn.Sulje();
         }
 
@@ -311,7 +311,7 @@ namespace Jufo_Tunnistus
             SqlConn.Sulje();
         }
 
-        
+
         public void Tunnista_ISBN_juuri(string taulu_julkaisut, string taulu_jufot)
         {
             SqlConn.Avaa();
@@ -472,14 +472,14 @@ namespace Jufo_Tunnistus
         }
 
 
-        public void Kirjoita_alkuperaiset_jufot_tmp_tauluun(string taulu_julkaisut_sa)
+        public void Kirjoita_alkuperaiset_jufot_tmp_tauluun()
         {
             SqlConn.Avaa();
             SqlConn.cmd.CommandText = @"
                 TRUNCATE TABLE julkaisut_ods.dbo.Jufot_TMP
                 INSERT INTO julkaisut_ods.dbo.Jufot_TMP (JulkaisunTunnus, JufoTunnus, JufoLuokkaKoodi)
                 SELECT JulkaisunTunnus, JufoTunnus, JufoLuokkaKoodi 
-                FROM " + taulu_julkaisut_sa;
+                FROM julkaisut_ods.dbo.SA_Julkaisut";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();
         }
@@ -502,7 +502,7 @@ namespace Jufo_Tunnistus
         }
 
 
-        public void Paivita_jufot_sa_tauluun(string taulu_julkaisut_sa, string taulu_julkaisut_temp)
+        public void Paivita_jufot_sa_tauluun(string taulu_julkaisut_temp)
         {
             SqlConn.Avaa();
             SqlConn.cmd.CommandText = @"
@@ -510,7 +510,7 @@ namespace Jufo_Tunnistus
                 SET 
                     t.JufoTunnus = t2.JufoTunnus
                     ,t.JufoLuokkaKoodi = t2.JufoLuokkaKoodi
-                FROM " + taulu_julkaisut_sa + @" t
+                FROM julkaisut_ods.dbo.SA_Julkaisut t
                 INNER JOIN " + taulu_julkaisut_temp + " t2 on t2.JulkaisunTunnus = t.JulkaisunTunnus";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();

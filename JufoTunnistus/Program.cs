@@ -5,7 +5,7 @@ namespace Jufo_Tunnistus
 {
     class Program
     {
-        
+
         static void Main(string[] args)
         {
 
@@ -19,7 +19,7 @@ namespace Jufo_Tunnistus
             // Palvelin
             //string server ="dwitjutisql19";  //debuggaukseen
             string server = args[0];
-           
+
 
             string connString = "Server=" + server + ";Trusted_Connection=true";
 
@@ -51,9 +51,11 @@ namespace Jufo_Tunnistus
             // ---------------------------------------------------------------------------------------------------------------
 
 
-            string taulu_julkaisut_sa = "julkaisut_ods.dbo.SA_Julkaisut"; // alkuperäinen
-            string taulu_julkaisut_temp = "julkaisut_ods.dbo.SA_Julkaisut_TMP"; // muokatut nimet
-            string taulu_jufot_temp = "julkaisut_ods.dbo.SA_Julkaisut_jufot_TMP"; // kaikki tunnistetut kanavat
+            // Nämä taulut tulee olla luotuna tietokannassa. Olemassaolon tarkistuksen ja mahdollisen luonnin voisi tehdä myös tässä ohjelmassa.
+            // Duplikaatti- ja yhteisjulkaisutunnistus käyttää samaa julkaisut_temp-taulua.
+
+            string taulu_julkaisut_temp = "julkaisut_ods.dbo.SA_JulkaisutTMP"; // muokatut nimet
+            string taulu_jufot_temp = "julkaisut_ods.dbo.SA_JulkaisutTMP_jufot"; // kaikki tunnistetut kanavat
 
 
             //// Vaihe 1
@@ -89,9 +91,9 @@ namespace Jufo_Tunnistus
 
             foreach (DataRow row in dt1.Rows)
             {
-                row["KonferenssinNimi"] = apufunktiot.muokkaa_nimea(row["KonferenssinNimi"].ToString());               
-                row["KustantajanNimi"] = apufunktiot.muokkaa_nimea(row["KustantajanNimi"].ToString());        
-                
+                row["KonferenssinNimi"] = apufunktiot.muokkaa_nimea(row["KonferenssinNimi"].ToString());
+                row["KustantajanNimi"] = apufunktiot.muokkaa_nimea(row["KustantajanNimi"].ToString());
+
                 row["JufoTunnus"] = null;
                 row["JufoLuokkaKoodi"] = null;
 
@@ -187,15 +189,15 @@ namespace Jufo_Tunnistus
 
             tietokantaoperaatiot.Tyhjenna_taulu(taulu_jufot_temp);
 
-            Action<string,string>[] metodit = new Action<string,string>[5] { 
-                tietokantaoperaatiot.Tunnista_konferenssi, 
+            Action<string, string>[] metodit = new Action<string, string>[5] {
+                tietokantaoperaatiot.Tunnista_konferenssi,
                 tietokantaoperaatiot.Tunnista_ISSN,
                 tietokantaoperaatiot.Tunnista_ISBN,
                 tietokantaoperaatiot.Tunnista_ISBN_juuri,
                 tietokantaoperaatiot.Hae_virta_additions
             };
 
-            foreach (Action<string,string> metodi in metodit)
+            foreach (Action<string, string> metodi in metodit)
             {
                 metodi.Invoke(taulu_julkaisut_temp, taulu_jufot_temp);
                 tietokantaoperaatiot.Hae_kanavan_jatkajat(taulu_jufot_temp);
@@ -212,21 +214,22 @@ namespace Jufo_Tunnistus
 
             // ---------------------------------------------------------------------------------------------------------------
 
-            
+
             //// Vaihe 3
 
 
             // Alkuperäiset jufo-tiedot talteen
-            tietokantaoperaatiot.Kirjoita_alkuperaiset_jufot_tmp_tauluun(taulu_julkaisut_sa);
+            tietokantaoperaatiot.Kirjoita_alkuperaiset_jufot_tmp_tauluun();
 
-            // Tunnistettujen tietojen päivitys alkuperäiseen tauluun
+            //// Tunnistettujen tietojen päivitys alkuperäiseen tauluun
+
             // Tehdään ensin julkaisut_temp-tauluun, voisi tehdä suoraan julkaisut_sa-tauluun
 
             // Tunnistetut tiedot julkaisut_temp-tauluun
             tietokantaoperaatiot.Paivita_jufot_julkaisut_temp_tauluun(taulu_julkaisut_temp, taulu_jufot_temp);
 
             // Tunnistetut tiedot sa-tauluun
-            tietokantaoperaatiot.Paivita_jufot_sa_tauluun(taulu_julkaisut_sa, taulu_julkaisut_temp);           
+            tietokantaoperaatiot.Paivita_jufot_sa_tauluun(taulu_julkaisut_temp);
 
 
 
