@@ -221,8 +221,7 @@ namespace Jufo_Tunnistus
             // Alkuperäiset jufo-tiedot talteen
             tietokantaoperaatiot.Kirjoita_alkuperaiset_jufot_tmp_tauluun();
 
-            //// Tunnistettujen tietojen päivitys alkuperäiseen tauluun
-
+            // Tunnistettujen tietojen päivitys alkuperäiseen tauluun
             // Tehdään ensin julkaisut_temp-tauluun, voisi tehdä suoraan julkaisut_sa-tauluun
 
             // Tunnistetut tiedot julkaisut_temp-tauluun

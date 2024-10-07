@@ -257,16 +257,19 @@ namespace Jufo_Tunnistus
             SqlConn.Avaa();
 
             // Temp-taulun luonti
+            // Rajataan pois -1 tilaiset julkaisut
             SqlConn.cmd.CommandText = @"
                 SELECT
                     JulkaisunTunnus, ISSN1 = [1], ISSN2 = [2]
                 INTO ##temp_issn
                 FROM (
                     SELECT
-                        JulkaisunTunnus
-                        , ISSN = nullif(ltrim(ISSN), '')
-                        , rn = row_number() over(partition by JulkaisunTunnus order by Lataus_ID)
-                    FROM julkaisut_ods.dbo.ODS_ISSN
+                        i.JulkaisunTunnus
+                        ,ISSN = nullif(ltrim(i.ISSN), '')
+                        ,rn = row_number() over(partition by i.JulkaisunTunnus order by i.Lataus_ID)
+                    FROM julkaisut_ods.dbo.ODS_ISSN i
+                    LEFT JOIN julkaisut_mds.koodi.julkaisuntunnus j ON j.JulkaisunTunnus = i.JulkaisunTunnus
+                    WHERE j.JulkaisunTila > -1
                 ) Q
                 PIVOT(
                     min(ISSN) FOR rn in ([1],[2])
