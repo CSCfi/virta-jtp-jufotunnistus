@@ -187,7 +187,8 @@ namespace Jufo_Tunnistus
                     ,JufoPaattely = 'konf'
                     ,t.JulkaisutyyppiKoodi
                 FROM " + taulu_julkaisut + @" t
-                INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.Name = t.KonferenssinNimi or jktk.Other_Title = t.KonferenssinNimi
+                INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.Name COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
+                    or jktk.Other_Title COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
                 WHERE not exists (select top 1 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
                 and jktk.Active_binary = 1 
                 and jktk.[Type] = 'Konferenssi'
@@ -340,7 +341,6 @@ namespace Jufo_Tunnistus
 	                ,Active
 	                ,Jufo_ID
 	                ,Jufo_History
-
                 FROM julkaisut_mds.dbo.Julkaisukanavatietokanta jktk
                 -- ISBN splittaus kahdessa osassa koska osassa kentistä erottimena on puolipiste ja osassa pilkku
                 OUTER APPLY (select item from julkaisut_ods.dbo.SplitStrings(jktk.ISBN,';')) oa1_1
@@ -351,8 +351,8 @@ namespace Jufo_Tunnistus
                 and jktk.Active_binary = 1
                 and oa1_1.Item is not null;
 
-                
                 INSERT INTO " + taulu_jufot + @" (JulkaisunTunnus,Julkaisuvuosi,Jufo_ID,JufoPaattely,JulkaisutyyppiKoodi)
+
                 SELECT distinct
                      t.JulkaisunTunnus
 	                ,t.JulkaisuVuosi
@@ -369,7 +369,10 @@ namespace Jufo_Tunnistus
                 INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2     
                 WHERE not exists (select top 1 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
                 and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2')
-                and (lower(t.KustantajanNimi) = lower(jktk.Name) or lower(t.KustantajanNimi) = lower(jktk.Title))                            
+                and (
+                    t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Name COLLATE Latin1_General_CI_AI 
+                    or t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Title COLLATE Latin1_General_CI_AI
+                )
 
                 DROP TABLE ##temp_jktk";
 

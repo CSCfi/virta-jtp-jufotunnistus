@@ -91,8 +91,8 @@ namespace Jufo_Tunnistus
 
             foreach (DataRow row in dt1.Rows)
             {
-                row["KonferenssinNimi"] = apufunktiot.muokkaa_nimea(row["KonferenssinNimi"].ToString());
-                row["KustantajanNimi"] = apufunktiot.muokkaa_nimea(row["KustantajanNimi"].ToString());
+                row["KonferenssinNimi"] = apufunktiot.Muokkaa_nimea(row["KonferenssinNimi"].ToString());
+                row["KustantajanNimi"] = apufunktiot.Muokkaa_nimea(row["KustantajanNimi"].ToString());
 
                 row["JufoTunnus"] = null;
                 row["JufoLuokkaKoodi"] = null;
@@ -222,7 +222,7 @@ namespace Jufo_Tunnistus
             tietokantaoperaatiot.Kirjoita_alkuperaiset_jufot_tmp_tauluun();
 
             // Tunnistettujen tietojen päivitys alkuperäiseen tauluun
-            // Tehdään ensin julkaisut_temp-tauluun, voisi tehdä suoraan julkaisut_sa-tauluun
+            // Tehdään ensin julkaisut_temp-tauluun, josta päättely-tieto haetaan tarkistuslokia varten
 
             // Tunnistetut tiedot julkaisut_temp-tauluun
             tietokantaoperaatiot.Paivita_jufot_julkaisut_temp_tauluun(taulu_julkaisut_temp, taulu_jufot_temp);
