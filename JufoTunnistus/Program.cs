@@ -20,13 +20,12 @@ namespace Jufo_Tunnistus
             //string server ="dwitjutisql19";  //debuggaukseen
             string server = args[0];
 
-
             string connString = "Server=" + server + ";Trusted_Connection=true";
+
 
             // Täällä ovat tarvittavat apufunktiot ja tietokantaoperaatiot
             Apufunktiot apufunktiot = new Apufunktiot();
             Tietokantaoperaatiot tietokantaoperaatiot = new Tietokantaoperaatiot(connString);
-
 
 
             // ---------------------------------------------------------------------------------------------------------------
@@ -76,12 +75,13 @@ namespace Jufo_Tunnistus
                     --,EmojulkaisunNimi
                     --,LehdenNimi   
                     --,DOI          
-                FROM julkaisut_ods.dbo.SA_Julkaisut 
+                FROM julkaisut_ods.dbo.SA_Julkaisut j
                 WHERE JulkaisunTilaKoodi != -1
-                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','C1','C2') --,'B1','B2','B3','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
-                AND JulkaisunTunnus NOT IN (
-                    SELECT JulkaisunTunnus 
-                    FROM julkaisut_ods.dbo.EiJufoTarkistusta
+                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','C1','C2','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
+                AND NOT EXISTS (
+                    SELECT 1 
+                    FROM julkaisut_ods.dbo.EiJufoTarkistusta ejt
+	                WHERE ejt.julkaisuntunnus = j.JulkaisunTunnus
                 )";
 
             tietokantaoperaatiot.Tyhjenna_taulu(taulu_julkaisut_temp);
@@ -121,12 +121,12 @@ namespace Jufo_Tunnistus
 
             /*
              
-                Julkaisutyypit A1 ja A2:
+                Julkaisutyypit A1, A2, D1, D4, E1, E3:
                 -----------------------------------------------
                 1 ISSN match -> Tarkistus  
             
 
-                Julkaisutyypit A3 ja C1:
+                Julkaisutyypit A3, C1, D2, D5, E2:
                 -----------------------------------------------
                 1 Julkaisulla ISSN tunnus
 		            - Löytyy julkaisukanavatietokannasta -> Tarkistus
@@ -139,7 +139,7 @@ namespace Jufo_Tunnistus
 		            - Ei ISBN matchia -> ISBN-juuri                                                       
                 
                 
-                Julkaisutyypit A4 ja C2:
+                Julkaisutyypit A4, C2, D3, D5:
                 -----------------------------------------------
                 Huom. Muutettu "Julkaisulla Ei ISSN tunnusta mutta on ISBN tunnus" käsittelyä siten että ei mennä suoraan ISBN-juuri tarkasteluun. 
                 Täten tunnistus on kohdasta "Konferenssia ei löydy julkaisukanavatietokannasta" eteenpäin vastaava kuin julkaisutyypeillä A3 ja C1.
@@ -156,10 +156,9 @@ namespace Jufo_Tunnistus
 				            - Ei ISBN match -> ISBN-juuri                        
                              
 
-                Muut julkaisutyypit (B1, B2, B3, D1, D2, D3, D4, D5, D6, E1, E2, E3):
+                Muut julkaisutyypit (B1, B2, B3):
                 ---------------------------------------------------------------------
-                1 ISSN match -> Tarkistus    
-                -> ! Muut julkaisutyypit eivät ole enää mukana tunnistuksessa. Jos halutaan mukaan niin muokattava ensimmäistä kyselyä.
+                Ei mukana tunnistuksessa. Jos halutaan mukaan, niin muokattava ensimmäistä kyselyä ja Tunnista-metodeja.
 
             */
 

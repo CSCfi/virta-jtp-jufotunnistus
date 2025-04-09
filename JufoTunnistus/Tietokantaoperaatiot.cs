@@ -36,7 +36,7 @@ namespace Jufo_Tunnistus
     class Tietokantaoperaatiot
     {
 
-        private SqlCon SqlConn;
+        private readonly SqlCon SqlConn;
 
         public Tietokantaoperaatiot() { }
 
@@ -189,11 +189,11 @@ namespace Jufo_Tunnistus
                 FROM " + taulu_julkaisut + @" t
                 INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.Name COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
                     or jktk.Other_Title COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
-                WHERE not exists (select top 1 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
                 and jktk.Active_binary = 1 
                 and jktk.[Type] = 'Konferenssi'
                 and jktk.Jufo_ID is not null
-                and t.JulkaisutyyppiKoodi in ('A4','C2')";
+                and t.JulkaisutyyppiKoodi in ('A4','C2','D3','D6')";
 
             try
             {
@@ -230,7 +230,7 @@ namespace Jufo_Tunnistus
                             ,t.JulkaisutyyppiKoodi
                         FROM " + taulu_julkaisut + @" t
                         INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = t.ISSN" + j + @"
-                        WHERE not exists (select top 1 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'issn')                         
+                        WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'issn')                         
                         and jktk.Active_binary = '1' 
                         and jktk.Jufo_ID is not null";
 
@@ -298,8 +298,8 @@ namespace Jufo_Tunnistus
                         INNER JOIN julkaisut_ods.dbo.ODS_ISBN i1 on (i1.ISBN = t.ISBN1 or i1.ISBN = t.ISBN2) and i1.JulkaisunTunnus != t.JulkaisunTunnus
                         INNER JOIN ##temp_issn tmp on tmp.JulkaisunTunnus = i1.JulkaisunTunnus 
                         INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = tmp.ISSN" + j + @"
-                        WHERE not exists (select top 1 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'isbn')                         
-                        and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2')
+                        WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'isbn')                         
+                        and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2')
                         and jktk.Active_binary = 1 
                         and jktk.Jufo_ID is not null
                         ";
@@ -363,12 +363,11 @@ namespace Jufo_Tunnistus
                 OUTER APPLY (
 	                select	
 		                ISBN_juuri1 = LEFT([ISBN1],nullif(charindex('-',[ISBN1],charindex('-',[ISBN1], (charindex('-',[ISBN1])+1))+1)-1,-1))
-                        -- Jos haku myös ISBN2 perusteella niin tämä mukaan
 		                ,ISBN_juuri2 = LEFT([ISBN2],nullif(charindex('-',[ISBN2],charindex('-',[ISBN2], (charindex('-',[ISBN2])+1))+1)-1,-1))
                 ) oa
                 INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2     
-                WHERE not exists (select top 1 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
-                and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2')
+                WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2')
                 and (
                     t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Name COLLATE Latin1_General_CI_AI 
                     or t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Title COLLATE Latin1_General_CI_AI
@@ -396,7 +395,7 @@ namespace Jufo_Tunnistus
                     ,t.JulkaisutyyppiKoodi
                 FROM " + taulu_julkaisut + @" t
                 INNER JOIN julkaisut_mds.dbo.VirtaAdditions v ON v.julkaisuntunnus = t.JulkaisunTunnus
-                WHERE not exists (select top 1 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
             ";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();
@@ -446,7 +445,13 @@ namespace Jufo_Tunnistus
                 UPDATE t
                 SET t.JufoLuokka = ca.Vuosi_Jufo_Luokka
                 FROM " + taulu_jufot + @" t
-                CROSS APPLY (select top 1 jh.Vuosi_Jufo_Luokka from julkaisut_mds.dbo.jufoluokat_vuosittain jh where jh.Jufo_ID = t.Jufo_ID_actual and jh.vuosi >= t.JulkaisuVuosi order by jh.vuosi-t.JulkaisuVuosi) ca
+                CROSS APPLY (
+                    select top 1 jh.Vuosi_Jufo_Luokka 
+                    from julkaisut_mds.dbo.jufoluokat_vuosittain jh 
+                    where jh.Jufo_ID = t.Jufo_ID_actual and jh.vuosi >= t.JulkaisuVuosi 
+                    order by jh.vuosi-t.JulkaisuVuosi
+                ) ca
+                WHERE t.JulkaisutyyppiKoodi IN ('A1','A2','A3','A4','C1','C2')
             ";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();
@@ -467,7 +472,9 @@ namespace Jufo_Tunnistus
             SqlConn.Avaa();
             SqlConn.cmd.CommandText = @"
                 WITH t as (
-                    SELECT JufoLuokka_Rank,jl_rank = row_number() over (partition by JulkaisunTunnus order by JufoLuokka desc, id)
+                    SELECT 
+                        JufoLuokka_Rank
+                        ,jl_rank = row_number() over (partition by JulkaisunTunnus order by JufoLuokka desc, id)
                     FROM " + taulu_jufot + @"
                 )
                 UPDATE t

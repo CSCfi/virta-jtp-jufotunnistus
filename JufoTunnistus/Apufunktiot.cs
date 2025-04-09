@@ -1,6 +1,4 @@
-﻿
-
-using System;
+﻿using System;
 using System.Text.RegularExpressions;
 
 namespace Jufo_Tunnistus
@@ -81,6 +79,12 @@ namespace Jufo_Tunnistus
             while (newDOI.Length > 2 && newDOI.Substring(0, 2) != "10")
             {
                 newDOI = newDOI.Substring(1);
+            }
+
+            // Palautetaan muokkaamaton DOI jos jäi jäljelle vain kaksi viimeistä numeroa
+            if (newDOI.Length == 2)
+            {
+                return doi;
             }
 
             return newDOI;
