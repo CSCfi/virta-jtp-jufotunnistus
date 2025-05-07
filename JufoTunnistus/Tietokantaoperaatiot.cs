@@ -189,7 +189,7 @@ namespace Jufo_Tunnistus
                 FROM " + taulu_julkaisut + @" t
                 INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.Name COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
                     or jktk.Other_Title COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
-                WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
                 and jktk.Active_binary = 1 
                 and jktk.[Type] = 'Konferenssi'
                 and jktk.Jufo_ID is not null
@@ -230,8 +230,8 @@ namespace Jufo_Tunnistus
                             ,t.JulkaisutyyppiKoodi
                         FROM " + taulu_julkaisut + @" t
                         INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = t.ISSN" + j + @"
-                        WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'issn')                         
-                        and jktk.Active_binary = '1' 
+                        WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'issn')                         
+                        and jktk.Active_binary = 1
                         and jktk.Jufo_ID is not null";
 
                     try
@@ -298,9 +298,9 @@ namespace Jufo_Tunnistus
                         INNER JOIN julkaisut_ods.dbo.ODS_ISBN i1 on (i1.ISBN = t.ISBN1 or i1.ISBN = t.ISBN2) and i1.JulkaisunTunnus != t.JulkaisunTunnus
                         INNER JOIN ##temp_issn tmp on tmp.JulkaisunTunnus = i1.JulkaisunTunnus 
                         INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = tmp.ISSN" + j + @"
-                        WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'isbn')                         
+                        WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'isbn')                         
                         and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2')
-                        and jktk.Active_binary = 1 
+                        and jktk.Active_binary = 1
                         and jktk.Jufo_ID is not null
                         ";
                     SqlConn.cmd.CommandTimeout = 180;
@@ -366,7 +366,7 @@ namespace Jufo_Tunnistus
 		                ,ISBN_juuri2 = LEFT([ISBN2],nullif(charindex('-',[ISBN2],charindex('-',[ISBN2], (charindex('-',[ISBN2])+1))+1)-1,-1))
                 ) oa
                 INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2     
-                WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
                 and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2')
                 and (
                     t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Name COLLATE Latin1_General_CI_AI 
@@ -395,7 +395,8 @@ namespace Jufo_Tunnistus
                     ,t.JulkaisutyyppiKoodi
                 FROM " + taulu_julkaisut + @" t
                 INNER JOIN julkaisut_mds.dbo.VirtaAdditions v ON v.julkaisuntunnus = t.JulkaisunTunnus
-                WHERE not exists (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                AND t.JulkaisutyyppiKoodi IN ('A1','A2','A3','A4','C1','C2')
             ";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();
@@ -451,7 +452,6 @@ namespace Jufo_Tunnistus
                     where jh.Jufo_ID = t.Jufo_ID_actual and jh.vuosi >= t.JulkaisuVuosi 
                     order by jh.vuosi-t.JulkaisuVuosi
                 ) ca
-                WHERE t.JulkaisutyyppiKoodi IN ('A1','A2','A3','A4','C1','C2')
             ";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();

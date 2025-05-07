@@ -139,10 +139,9 @@ namespace Jufo_Tunnistus
 		            - Ei ISBN matchia -> ISBN-juuri                                                       
                 
                 
-                Julkaisutyypit A4, C2, D3, D5:
+                Julkaisutyypit A4, C2, D3, D6:
                 -----------------------------------------------
-                Huom. Muutettu "Julkaisulla Ei ISSN tunnusta mutta on ISBN tunnus" käsittelyä siten että ei mennä suoraan ISBN-juuri tarkasteluun. 
-                Täten tunnistus on kohdasta "Konferenssia ei löydy julkaisukanavatietokannasta" eteenpäin vastaava kuin julkaisutyypeillä A3 ja C1.
+                Tunnistus on kohdasta "Konferenssia ei löydy julkaisukanavatietokannasta" eteenpäin vastaava kuin edellisen kohdan julkaisutyypeillä.
 
                 1 Konferenssi löytyy julkaisukanavatietokannasta -> Tarkistus
 	            2 Konferenssia ei löydy julkaisukanavatietokannasta
