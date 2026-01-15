@@ -77,7 +77,7 @@ namespace Jufo_Tunnistus
                     --,DOI          
                 FROM julkaisut_ods.dbo.SA_Julkaisut j
                 WHERE JulkaisunTilaKoodi != -1
-                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','C1','C2','D1','D2','D3','D4','D5','D6','E1','E2','E3') 
+                AND JulkaisutyyppiKoodi in ('A1','A2','A3','A4','C1','C2','D1','D2','D3','D4','D5','D6','E1','E2','E3','B1','B2','B3') 
                 AND NOT EXISTS (
                     SELECT 1 
                     FROM julkaisut_ods.dbo.EiJufoTarkistusta ejt

@@ -193,7 +193,7 @@ namespace Jufo_Tunnistus
                 and jktk.Active_binary = 1 
                 and jktk.[Type] = 'Konferenssi'
                 and jktk.Jufo_ID is not null
-                and t.JulkaisutyyppiKoodi in ('A4','C2','D3','D6')";
+                and t.JulkaisutyyppiKoodi in ('A4','C2','D3','D6', 'B3')";
 
             try
             {
@@ -299,7 +299,7 @@ namespace Jufo_Tunnistus
                         INNER JOIN ##temp_issn tmp on tmp.JulkaisunTunnus = i1.JulkaisunTunnus 
                         INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk on jktk.ISSN" + i + " = tmp.ISSN" + j + @"
                         WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'isbn')                         
-                        and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2')
+                        and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2','B2','B3')
                         and jktk.Active_binary = 1
                         and jktk.Jufo_ID is not null
                         ";
@@ -367,7 +367,7 @@ namespace Jufo_Tunnistus
                 ) oa
                 INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2     
                 WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
-                and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2')
+                and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2','B2','B3')
                 and (
                     t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Name COLLATE Latin1_General_CI_AI 
                     or t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Title COLLATE Latin1_General_CI_AI
@@ -524,7 +524,9 @@ namespace Jufo_Tunnistus
                     t.JufoTunnus = t2.JufoTunnus
                     ,t.JufoLuokkaKoodi = t2.JufoLuokkaKoodi
                 FROM julkaisut_ods.dbo.SA_Julkaisut t
-                INNER JOIN " + taulu_julkaisut_temp + " t2 on t2.JulkaisunTunnus = t.JulkaisunTunnus";
+                INNER JOIN " + taulu_julkaisut_temp + " t2 on t2.JulkaisunTunnus = t.JulkaisunTunnus " +
+                "WHERE NOT (t2.JufoTunnus IS  NULL " +
+                "AND t.julkaisutyyppikoodi IN ('B1','B2','B3','D1','D2','D3','D4','D5','D6','E1','E2','E3'))";
             SqlConn.cmd.ExecuteNonQuery();
             SqlConn.Sulje();
         }
