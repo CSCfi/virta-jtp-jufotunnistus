@@ -187,11 +187,12 @@ namespace Jufo_Tunnistus
                     ,JufoPaattely = 'konf'
                     ,t.JulkaisutyyppiKoodi
                 FROM " + taulu_julkaisut + @" t
-                INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk on jktk.Name COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
+                INNER JOIN julkaisut_mds.dbo.julkaisukanavatietokanta_sa jktk on jktk.Name COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
                     or jktk.Other_Title COLLATE Latin1_General_CI_AI = t.KonferenssinNimi COLLATE Latin1_General_CI_AI
                 WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
                 and jktk.Active_binary = 1 
-                and jktk.[Type] = 'Konferenssi'
+                -- julkaisut_mds.dbo.julkaisukanavatietokanta-taulussa 'konferenssi'
+                and jktk.[Type] = 'Konferenssit' 
                 and jktk.Jufo_ID is not null
                 and t.JulkaisutyyppiKoodi in ('A4','C2','D3','D6', 'B3')";
 
@@ -229,7 +230,7 @@ namespace Jufo_Tunnistus
                             ,JufoPaattely = 'issn'
                             ,t.JulkaisutyyppiKoodi
                         FROM " + taulu_julkaisut + @" t
-                        INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk on jktk.ISSN" + i + " = t.ISSN" + j + @"
+                        INNER JOIN julkaisut_mds.dbo.julkaisukanavatietokanta_sa jktk on jktk.ISSN" + i + " = t.ISSN" + j + @"
                         WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'issn')                         
                         and jktk.Active_binary = 1
                         and jktk.Jufo_ID is not null";
@@ -297,7 +298,7 @@ namespace Jufo_Tunnistus
                         FROM " + taulu_julkaisut + @" t
                         INNER JOIN julkaisut_ods.dbo.ODS_ISBN i1 on (i1.ISBN = t.ISBN1 or i1.ISBN = t.ISBN2) and i1.JulkaisunTunnus != t.JulkaisunTunnus
                         INNER JOIN ##temp_issn tmp on tmp.JulkaisunTunnus = i1.JulkaisunTunnus 
-                        INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk on jktk.ISSN" + i + " = tmp.ISSN" + j + @"
+                        INNER JOIN julkaisut_mds.dbo.julkaisukanavatietokanta_sa jktk on jktk.ISSN" + i + " = tmp.ISSN" + j + @"
                         WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus and JufoPaattely != 'isbn')                         
                         and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2','B2','B3')
                         and jktk.Active_binary = 1
@@ -341,12 +342,14 @@ namespace Jufo_Tunnistus
 	                ,Active
 	                ,Jufo_ID
 	                ,Jufo_History
-                FROM julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk
+                FROM julkaisut_mds.dbo.julkaisukanavatietokanta_sa jktk
                 -- ISBN splittaus kahdessa osassa koska osassa kentistä erottimena on puolipiste ja osassa pilkku
                 OUTER APPLY (select item from julkaisut_ods.dbo.SplitStrings(jktk.ISBN,';')) oa1_1
                 OUTER APPLY (select item from julkaisut_ods.dbo.SplitStrings(oa1_1.Item,',')) oa1
                 OUTER APPLY (select item from julkaisut_ods.dbo.SplitStrings(jktk.Other_Title,';')) oa2
-                WHERE [Type] = 'Kirjakustantaja' 
+                WHERE
+                -- julkaisut_mds.dbo.julkaisukanavatietokanta-taulussa 'Kirjakustantaja'
+                [Type] = 'Kirjakustantajat'
                 and jktk.Jufo_ID is not null
                 and jktk.Active_binary = 1
                 and oa1_1.Item is not null;
@@ -411,11 +414,11 @@ namespace Jufo_Tunnistus
                 SET
 	                t.Jufo_ID_actual =  coalesce(jktk5.Jufo_ID, jktk4.Jufo_ID, jktk3.Jufo_ID, jktk2.Jufo_ID, jktk1.Jufo_ID)
                 FROM " + taulu_jufot + @" t
-                INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk1 ON jktk1.Jufo_ID = t.Jufo_ID 
-                LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk2 ON jktk2.Jufo_ID = jktk1.Continued_by and jktk1.Continued_by is not null and not(jktk1.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk1.Year_End, 1900))
-                LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk3 ON jktk3.Jufo_ID = jktk2.Continued_by and jktk2.Continued_by is not null and not(jktk2.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk2.Year_End, 1900))
-                LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk4 ON jktk4.Jufo_ID = jktk3.Continued_by and jktk3.Continued_by is not null and not(jktk3.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk3.Year_End, 1900))
-                LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta_sa jktk5 ON jktk5.Jufo_ID = jktk4.Continued_by and jktk4.Continued_by is not null and not(jktk4.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk4.Year_End, 1900))
+                INNER JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk1 ON jktk1.Jufo_ID = t.Jufo_ID 
+                LEFT JOIN julkaisut_mds.dbo.Julkaisukanavatietokanta jktk2 ON jktk2.Jufo_ID = jktk1.Continued_by and jktk1.Continued_by is not null and not(jktk1.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk1.Year_End, 1900))
+                LEFT JOIN julkaisut_mds.dbo.julkaisukanavatietokanta_sa jktk3 ON jktk3.Jufo_ID = jktk2.Continued_by and jktk2.Continued_by is not null and not(jktk2.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk2.Year_End, 1900))
+                LEFT JOIN julkaisut_mds.dbo.julkaisukanavatietokanta_sa jktk4 ON jktk4.Jufo_ID = jktk3.Continued_by and jktk3.Continued_by is not null and not(jktk3.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk3.Year_End, 1900))
+                LEFT JOIN julkaisut_mds.dbo.julkaisukanavatietokanta_sa jktk5 ON jktk5.Jufo_ID = jktk4.Continued_by and jktk4.Continued_by is not null and not(jktk4.active = 'Active' or t.JulkaisuVuosi <= coalesce(jktk4.Year_End, 1900))
                 WHERE 1=1
                 and t.Jufo_ID_actual is null
                 and (
