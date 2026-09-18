@@ -354,6 +354,29 @@ namespace Jufo_Tunnistus
                 and jktk.Active_binary = 1
                 and oa1_1.Item is not null;
 
+                ----------------------
+                -- Haku Name-kenttään
+                INSERT INTO " + taulu_jufot + @" (JulkaisunTunnus,Julkaisuvuosi,Jufo_ID,JufoPaattely,JulkaisutyyppiKoodi)
+
+                SELECT distinct
+                     t.JulkaisunTunnus
+	                ,t.JulkaisuVuosi
+                    ,jktk.Jufo_ID
+                    ,JufoPaattely = 'isbn_juuri'
+                    ,t.JulkaisutyyppiKoodi
+                FROM " + taulu_julkaisut + @" t
+                OUTER APPLY (
+	                select
+		                ISBN_juuri1 = LEFT([ISBN1],nullif(charindex('-',[ISBN1],charindex('-',[ISBN1], (charindex('-',[ISBN1])+1))+1)-1,-1))
+		                ,ISBN_juuri2 = LEFT([ISBN2],nullif(charindex('-',[ISBN2],charindex('-',[ISBN2], (charindex('-',[ISBN2])+1))+1)-1,-1))
+                ) oa
+                INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2
+                WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
+                and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2','B2','B3')
+                and t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Name COLLATE Latin1_General_CI_AI;
+
+                ---------------------
+                -- Haku Title-kenttään
                 INSERT INTO " + taulu_jufot + @" (JulkaisunTunnus,Julkaisuvuosi,Jufo_ID,JufoPaattely,JulkaisutyyppiKoodi)
 
                 SELECT distinct
@@ -371,11 +394,9 @@ namespace Jufo_Tunnistus
                 INNER JOIN ##temp_jktk jktk on jktk.jktk_isbn = oa.ISBN_juuri1 or jktk.jktk_isbn = oa.ISBN_juuri2     
                 WHERE NOT EXISTS (select 1 from " + taulu_jufot + @" where JulkaisunTunnus=t.JulkaisunTunnus)
                 and t.JulkaisutyyppiKoodi in ('A3','A4','C1','C2','D2','D3','D5','D6','E2','B2','B3')
-                and (
-                    t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Name COLLATE Latin1_General_CI_AI 
-                    or t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Title COLLATE Latin1_General_CI_AI
-                )
+                and t.KustantajanNimi COLLATE Latin1_General_CI_AI = jktk.Title COLLATE Latin1_General_CI_AI;
 
+                ---------------------
                 DROP TABLE ##temp_jktk";
 
             SqlConn.cmd.CommandTimeout = 180;
