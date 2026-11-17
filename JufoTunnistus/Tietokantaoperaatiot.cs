@@ -529,7 +529,11 @@ namespace Jufo_Tunnistus
                 UPDATE t
                 SET 
                     t.JufoTunnus = t2.Jufo_ID_actual
-                    ,t.JufoLuokkaKoodi = t2.JufoLuokka
+                    ,t.JufoLuokkaKoodi = CASE 
+                                            WHEN t.JulkaisutyyppiKoodi IN ('A1','A2','A3','A4','C1','C2')
+                                                THEN t2.JufoLuokka
+                                            ELSE NULL
+                                         END
                     ,t.JufoPaattely = t2.JufoPaattely
                 FROM " + taulu_julkaisut + @" t
                 INNER JOIN " + taulu_jufot + @" t2 on t2.JulkaisunTunnus = t.JulkaisunTunnus
